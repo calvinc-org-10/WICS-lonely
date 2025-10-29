@@ -1,0 +1,167 @@
+{% extends "WICS_common.html" %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block tTitle %}WICS User Admin{% endblock %}
+{% block customCSS %}
+{% include "proposed-table-CSS.css" %}
+{% endblock %}
+{% block formName %}<h1>WICS User Administration</h1>{% endblock %}
+{% block boddy %}
+    <!-- form body -->
+    {{ PW }} is default PW for new users
+    <hr>
+    <form id="mainForm" name="mainForm" method="post">  <!-- action=?? - not needed - submit will submit to calling view -->
+
+    <div class="container text-center"> <!-- user Form -->
+        {% csrf_token %}
+        {{ ulist.management_form }}
+
+        {% if ulist.non_form_errors %}
+        <div class="row">
+            {{ ulist.non_form_errors }}
+        </div>
+        <hr>
+        {% endif %}
+        <table style="height:380px;">
+            <thead>
+                <tr>
+                    <td>ID</td>
+                    <td>UserName</td>
+                    <td>Menu Group</td>
+                    <td>First Name</td>
+                    <td>Last Name</td>
+                    <td>email</td>
+                    <td>super? - admin? - actv?</td>
+                    <td>Last Login</td>
+                </tr>
+            </thead>
+            <tbody id="form_set">
+            {% for u in ulist %}
+                {% if u.errors %}<tr><td colspan=8>{{ u.errors }}</td></tr>{% endif %}  
+                <tr>
+                    <td>{% render_field u.showuid size="3" %}</td>
+                    <td>{% render_field u.uname size="12" %}</td>
+                    <td>{% render_field u.menuGroup style="width:15em" %}</td>
+                    <td>{% render_field u.fname size="20" %}</td>
+                    <td>{% render_field u.lname size="20" %}</td>
+                    <td>{% render_field u.email size="20" %}</td>
+                    <td>
+                        {% render_field u.superuser %}
+                        {% render_field u.admin %}
+                        {% render_field u.active %}
+                    </td>
+                    <td>{% render_field u.last_login size="15" %}</td>
+                </tr>
+                <tr style="border-bottom:solid;">
+                    <td colspan=5></td>
+                    <td colspan=3>
+                        <button type="button" onclick="chpw('{{ u.uname.value }}');">Change Password</button>
+                        <button type="button" onclick="delusr({{ u.WICSuid.value }}, '{{ u.uname.value }}');">Remove user</button>
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div> <!-- row -->
+    </div> <!-- user Form -->
+
+    <!-- form footer -->
+    <div class="container">
+        <div class="row mx-auto max-width=100%">
+            <div class="col-5">
+                <button type="submit">
+                    <img src="{% static 'poem-poetry-icon.svg' %}" width="20" height="20"></img>
+                    Save changes
+                </button>
+                <button id="add-user" type="button" onclick="create_empty_user()" disabled>
+                    Add user
+                </button>
+            </div>
+            <div class="col-5"></div>
+            <div class="col">
+                <button type="button" onclick="window.close();">
+                    <img src="{% static 'stop-road-sign-icon.svg' %}" width="20" height="20"></img>
+                    Close Form
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <input type="hidden" id="delusrid" name="delusrid"></input>
+    <div id="empty_form" hidden>
+        <tr style="border-bottom:solid;">
+            <td>{% render_field ulist.empty_form.showuid size="4" %}</td>
+            <td>{% render_field ulist.empty_form.uname size="12" %}</td>
+            <td>{% render_field ulist.empty_form.menuGroup %}</td>
+            <td>{% render_field ulist.empty_form.fname size="20" %}</td>
+            <td>{% render_field ulist.empty_form.lname size="20" %}</td>
+            <td>{% render_field ulist.empty_form.email size="20" %}</td>
+            <td>
+                {% render_field ulist.empty_form.superuser %}
+                {% render_field ulist.empty_form.admin %}
+                {% render_field ulist.empty_form.active %}
+            </td>
+            <td>{% render_field ulist.empty_form.last_login size="20" %}</td>
+        </tr>
+    </div>
+
+    </form>
+
+    <div id="modalGeneric" class="modal" >
+    </div>
+    
+    <script>
+        function create_empty_user() {
+            var form_idx = $('#id_form-TOTAL_FORMS').val()
+            // check against max-forms before allowing add
+            $('#form_set').append($('#empty_form').html().replace(/__prefix__/g, form_idx).replace("hidden",""))
+            $('#id_form-TOTAL_FORMS').val(parseInt(form_idx) + 1)
+        };
+        function chpw(usNm) {
+
+            pwForm = "{% url 'change_password_u' 'nname' %}"
+            pwForm = pwForm.replace("/nname","/"+usNm);
+            window.open(pwForm,'_blank');
+    
+        };
+        function delusr(uid, uname) {
+            // confirm
+            $("#modalGeneric").dialog("option","title","Really Remove User?");
+            document.getElementById("modalGeneric").innerHTML = 'Are you <b>SURE</b> you want to remove user '+uname+"?"
+    
+            $("#modalGeneric").dialog("option","buttons", 
+                { 
+                    "No" : function() {
+                        $(this).dialog("close"); 
+                    },
+                    "Yes" : function() {
+                        document.getElementById("delusrid").value = uid;
+                        document.forms['mainForm'].submit();
+
+                        $(this).dialog("close");
+                    },
+                } );
+
+            $("#modalGeneric").dialog("open");
+        };
+
+    // set up Modal
+    $("#modalGeneric").dialog({
+        autoOpen: false,
+        closeOnEscape: false,
+        modal: true,
+        hide: "puff",
+        position: {
+            my: "top center", at: "top center"
+        }
+    });
+
+    window.addEventListener("beforeunload",  function(event) {
+        document.getElementById("wait_spinner").style.display = "block";
+    });
+
+</script>
+
+
+{% endblock %}

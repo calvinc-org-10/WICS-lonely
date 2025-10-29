@@ -1,0 +1,221 @@
+{% extends "WICS_common.html" %}
+{% load widget_tweaks %}
+{% load evaluate_arithmetic %}
+{% load static %}
+
+{% block tTitle %}Actual Counts{% endblock %}
+{% block customCSS %}
+{% include "proposed-table-CSS.css" %}
+tbody tr {
+    border-bottom:solid;
+}
+{% endblock %}
+{% block formName %}Actual Count Records{% endblock formName %}
+{% block boddy %}
+{% csrf_token %}
+<table style="height:350px;">
+<!-- header row -->
+<thead>
+    <tr>
+        <td></td>
+        <td>
+            Count Date | Counter | Material | LOCATION | Counted Quantity
+        </td> 
+        <td></td>
+    </tr>
+</thead>
+<tbody>
+    {% for itm in ActCtList %}
+    <tr>
+        <td>
+            {{ itm.id }}:&nbsp;&nbsp;
+        </td>
+        <td>
+            {{ itm.CountDate }} | 
+            {{ itm.Counter }} |
+            {{ itm.Material }} |
+            {{ itm.LOCATION }} |
+            {% if not itm.LocationOnly %}
+                {{ itm.CTD_QTY_Expr }} = {{ itm.CTD_QTY_Expr|eval_arith }}
+            {% else %}
+                <b>LOCATION ONLY</b>
+            {% endif %}
+            {% if itm.Notes %}
+                <br>
+                {{ itm.Notes }}
+            {% endif %}
+        <td>
+        <td>
+            <!--TODO: Make all of these buttons work the same way -->
+            <button id="edit{{ itm.id }}" class="edit" value="{{ itm.id }}" type="button">Edit</button>
+            <button type="button" onclick="CopyCount({{itm.id}})">Copy Count</button>
+            <button type="button" onclick="DeleteCount({{itm.id}})">Delete Count</button>
+        </td>
+    </tr>
+    {% endfor %}
+</tbody>
+</table>
+<!-- form footer -->
+<hr>
+<div class="container">
+    <div class="row mx-auto max-width=100%">
+        <div class="col-2">
+            <button 
+                id="add_btn" 
+                type="button">
+                <img src="{% static 'addition-color-outline-icon.svg' %}" width="20" height="20" />
+                Add New Count
+            </button>
+        </div>
+        <div class="col-8">
+        </div>
+        <div class="col-2">
+            <button 
+                id="close_btn" 
+                type="button" 
+                onclick="window.close();">
+                <img src="{% static 'stop-road-sign-icon.svg' %}" width="20" height="20" />
+                Close Form
+            </button>
+        </div>
+    </div>
+</div>
+
+{% comment %}
+<!-- Modal -->
+<!-- currently not used, but leave here in case needed later -->
+<div class="modal-sm fade" id="modalRemvCheck" role="dialog">
+    <div class="modal-dialog">
+        <!-- Modal content-->
+        <div class="modal-content">
+            <div class="modal-header">
+            <button type="button" class="close" data-dismiss="modal">&times;</button>
+            <h4 class="modal-title" id="modal_title"></h4>
+        </div>
+        <div class="modal-body" id="modal_question">
+        </div>
+        <div class="modal-footer">
+        <form>
+            <input type="hidden" name="RecNum"></input>
+            <fieldset>
+            <button type="button" class="btn btn-default" name="killRec" value="false" data-dismiss="modal">No</button>
+            <button type="button" class="btn"             name="killRec" value="true"  data-dismiss="modal">Yes, abandon changes</button>
+            <!-- Allow form submission with keyboard without duplicating the dialog button -->
+            <input type="submit" tabindex="-1" style="position:absolute; top:-1000px">
+            </fieldset>
+        </form>
+        </div>
+    </div>
+</div>
+{% endcomment %}
+
+<div id="modalGeneric" class="modal" >
+</div>
+
+
+<script>
+    $(".edit").on("click",loadCountEntryRec)
+
+    function loadCountEntryRec(event) {
+        R = parseInt(this.value)
+
+        newRec = "{% url 'CountEntryFormGo' 0 %}"
+        newRec = newRec.replace("/0","/"+R);
+        window.open(newRec,'_blank');
+
+    };
+
+    $("#add_btn").on("click",addNewCountEntryRec)
+
+    function addNewCountEntryRec(event) {
+        newRec = "{% url 'CountEntryForm' %}"
+        window.open(newRec,'_blank');
+    };
+
+    function CopyCount(idToCopy) {
+        const newdateid = "newcopy-date";
+        const todayDate = new Date();   // I STILL hate date manipulation!! Can't we all just agree on a standard???
+        const todayStr = todayDate.toISOString().slice(0,10)
+        $("#modalGeneric").dialog("option","title","Copy to what Date?");
+        document.getElementById("modalGeneric").innerHTML = '<input type="date" name="'+newdateid+'" id="'+newdateid+'" value="'+todayStr+'"></input>'
+
+        $("#modalGeneric").dialog("option","buttons", 
+            { 
+                "OK" : function() {
+                    d = $("#"+newdateid).val();
+
+                    const formdata = new FormData();
+                    formdata.append('copyCountFromid', idToCopy);
+                    formdata.append('copyCountToDate', d);
+
+                    // location.reload()
+                    const req = new XMLHttpRequest();
+                    req.addEventListener("loadend", (evnt) => {
+                        location.reload();
+                    });
+                    const thisurl= location.href; // "{% url 'ActualCountList' %}";
+                    req.open("POST", thisurl);
+                    csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    req.setRequestHeader('X-CSRFToken', csrftoken);
+
+                    document.getElementById("wait_spinner").style.display = "block";
+                    req.send(formdata);
+
+                    $(this).dialog("close");
+                },
+                "Cancel" : function() {
+                    $(this).dialog("close"); 
+                }
+            } );
+        $("#modalGeneric").dialog("open");
+
+    };
+
+    function DeleteCount(idToDelete) {
+        $("#modalGeneric").dialog("option","title","Really Deelte Count?");
+        document.getElementById("modalGeneric").innerHTML = 'Are you <b>SURE</b> you want to delete count '+idToDelete+"?"
+
+        $("#modalGeneric").dialog("option","buttons", 
+            { 
+                "No" : function() {
+                    $(this).dialog("close"); 
+                },
+                "Yes" : function() {
+                    const formdata = new FormData();
+                    formdata.append('deleteCountid', idToDelete);
+
+                    // location.reload()
+                    const req = new XMLHttpRequest();
+                    req.addEventListener("loadend", (evnt) => {
+                        location.reload();
+                    });
+                    const thisurl= location.href; // "{% url 'ActualCountList' %}";
+                    req.open("POST", thisurl);
+                    csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+                    req.setRequestHeader('X-CSRFToken', csrftoken);
+
+                    document.getElementById("wait_spinner").style.display = "block";
+                    req.send(formdata);
+
+                    $(this).dialog("close");
+                },
+            } );
+        $("#modalGeneric").on("dialogopen", (evnt) => { console.log(this); });
+        $("#modalGeneric").dialog("open");
+
+    };
+
+    // handle Modal
+    $("#modalGeneric").dialog({
+        autoOpen: false,
+        closeOnEscape: false,
+        modal: true,
+        hide: "puff",
+        position: {
+            my: "top center", at: "top center"
+        }
+    });
+
+</script>
+
+{% endblock %}

@@ -1,0 +1,61 @@
+{% extends "WICS_common.html" %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block tTitle %}Upload SAP MB52 File Successful{% endblock %}
+{% block formName %}Upload SAP MB52 File Successful{% endblock %}
+
+{% block boddy %}
+    <hr>
+
+    {% csrf_token %}
+    
+    <h4>{{ nRows }} SAP SOH (MB52) spreadsheet records successfully uploaded with date {{ uploaded_at }}! {# {{ uploaded_at|date:'Y-m-d' }}! #}</h4>
+    {% if UplProblems %}
+    <h4><u>Problems:</u></h4>
+    <ul>
+    {% for prob in UplProblems %}
+        <li>{{ prob }}</li>
+    {% endfor %}
+    </ul>
+    {% endif %}
+    </ul>
+
+    <!-- form footer -->
+    <div class="container">
+        <div class="row mx-auto max-width=100%">
+            <div class="col-4"></div>
+            <div class="col-6"></div>
+            <div class="col">
+                <button id="close_btn" type="button" onclick="window.close();" >
+                    <img src="{% static 'stop-road-sign-icon.svg' %}" width="20" height="20"></img>
+                    Close Form
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        $( document ).ready(function() {
+            const formdata = new FormData();
+            formdata.append('phase', 'resultspresented')
+            csrftoken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+            $.ajax({
+                type: 'POST', 
+                data: formdata,
+                headers: {'X-CSRFToken': csrftoken},
+                processData: false, 
+                contentType: false, 
+                success: function(data) {}
+                });
+
+            // announce the results
+            speak("Your S.A.P. MB52 Spreadsheet is Uploaded."
+                + "  {{ nRowsRead }} rows were read."
+                + "  There were {{ UplProblems|length }} rows with problems."
+                + "  {{ nRows }} rows were added to the S.A.P. table with date {{ uploaded_at }}."
+            );
+        });    
+    </script>
+
+{% endblock %}

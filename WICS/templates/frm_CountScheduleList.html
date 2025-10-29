@@ -1,0 +1,95 @@
+{% extends "WICS_common.html" %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block tTitle %}Count Schedule{% endblock %}
+{% block formName %}Count Schedule Records{% endblock %}
+
+{% block boddy %}
+<hr>
+<div class="container text-start" style="height:350px; overflow: auto;">
+    {% for itm in CtSchdList %}
+    <div class="row g-0">
+        <div class="col-10">
+            {{ itm.id }} |
+            Count Date: {{ itm.CountDate }} | 
+            {{ itm.Material_org }} |
+            Assigned Counter: {{ itm.Counter|default:'--None--' }} |
+            Prio: {{ itm.Priority|default:'---' }} |
+            Reas Sched: {{ itm.ReasonScheduled|default:'---' }}
+        </div>
+        <div class="col-1">
+        </div>
+    </div>
+    <div class="row g-0">
+        <div class="col-3">
+            {% if itm.Requestor_userid_id %}
+            Requestor: {{ itm.Requestor|default:'' }} |
+            Req. Filled: {{ itm.RequestFilled|yesno }}
+            {% endif %}
+        </div>
+        <div class="col-6">{{ itm.ScheduleNotes|default:'~no notes~' }}</div>
+        <div class="col-2">
+            <button id="edit{{ itm.id }}" class="edit" value="{{ itm.id }}" type="button">Edit</button>
+        </div>
+    </div>
+    <hr>
+    {% endfor %}
+</div>
+
+<!-- form footer -->
+<hr>
+<div class="container">
+    <div class="row mx-auto max-width=100%">
+        <div class="col-2">
+            <button 
+                id="add_btn" 
+                type="button">
+                <img src="{% static 'addition-color-outline-icon.svg' %}" width="20" height="20"></img>
+                Add Schedule Entry
+            </button>
+        </div>
+        <div class="col-8">
+        </div>
+        <div class="col-2">
+            <button 
+                id="close_btn" 
+                type="button" 
+                onclick="window.close();">
+                <img src="{% static 'stop-road-sign-icon.svg' %}" width="20" height="20"></img>
+                Close Form
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+
+    //---------------------------
+
+    $(".edit").on("click",loadCountEntryRec)
+
+    function loadCountEntryRec(event) {
+
+        R = parseInt(this.value)
+
+        newRec = "{% url 'CountScheduleFormGo' 0 %}"
+        newRec = newRec.replace("/0","/"+R);
+        window.open(newRec,'_blank');
+
+    };
+
+    //----------------------------
+
+    //----------------------------
+
+    $("#add_btn").on("click",addNewCountEntryRec)
+
+    function addNewCountEntryRec(event) {
+        newRec = "{% url 'CountScheduleForm' %}"
+        window.open(newRec,'_blank')
+        };
+
+</script>
+
+{% endblock %}

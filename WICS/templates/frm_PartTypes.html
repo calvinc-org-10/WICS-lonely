@@ -1,0 +1,338 @@
+{% extends "WICS_common.html" %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block tTitle %}Part Types{% endblock %}
+{% block customCSS %}
+{% include "proposed-table-CSS.css" %}
+{% endblock %}
+{% block formName %}Part Types{% endblock %}
+{% block statusMsgs %}
+    {% if changes_saved.main %}
+        <div class="alert alert-success p-0 alert-dismissible fade show">
+            <button type="button" class="btn-close p-0" data-bs-dismiss="alert"></button>
+            This Part Type record successfully saved.
+            ChDat: {{ changed_data.main }}
+        </div>
+    {% endif %}
+    {% if changes_saved.matl %}
+        <div class="alert alert-success p-0 alert-dismissible fade show">
+            <button type="button" class="btn-close p-0" data-bs-dismiss="alert"></button>
+            Material record(s) successfully saved.
+            ChDat: {{ changed_data.matl }}
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block boddy %}
+<hr>
+
+<!-- GoTo -->
+<div id="gotoForm" class="container text-center bg-secondary">
+    <div class="row mx-auto max-width=95%">
+        <div class="col mx-auto">
+            <h1><label for="gotoID">GoTo Part Type</label>
+            <input list="PTyp-list" id="gotoID" name="gotoID" onfocus="$(this).select();" onchange="processGoToRec();" value="{{gotoForm.gotoItem.WhsePartType}}">
+            <span class="bi-caret-down-square" style="position:relative;top:+0px;font-size:45px;left:-59px;" onclick="$gotoTextBox.focus();"></span>
+            </h1>
+            <datalist id="PTyp-list">
+                {% for itm in gotoForm.choicelist %}
+                    <option value="{{itm.WhsePartType}}">
+                {% endfor %}
+            </datalist>
+            <input type="hidden" id="realGotoID" name="realGotoID"></input>
+        </div>
+    </div>
+</div>
+
+<form id="FmMain" class="trackformchanges" method="post">
+    {% csrf_token %}
+    <!-- form header -->
+    {% if frmMain.errors %}{{ frmMain.errors }}{% endif %}
+    <hr>
+
+    <!-- main part of form -->
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-1">
+                {{ showID }}
+            </div>
+            <div class="col-7">
+                Part Type:  {% render_field frmMain.WhsePartType %}
+                PartTypePriority: {% render_field frmMain.PartTypePriority %}
+                InactivePartType? {% render_field frmMain.InactivePartType %}
+            </div>
+        </div>
+        <hr>
+        <b>To change the Part Type of a Material or add new Materials, use the Material Form</b>
+    
+    <!-- subforms -->
+    <table id="Materials" style="height:350px;">
+        <thead>
+            <tr style="border-bottom:thin solid;">
+                <td colspan=6>
+                    {{ materials.management_form }}
+                    {% if materials.non_form_errors %} {{ materials.non_form_errors }} <br> {% endif %}
+                    {% for err in materials.errors %} {% if err %} {{ err }} {% endif %} {% endfor %}
+                </td>
+            </tr>
+            <tr>
+                <td></td>
+                <td>Material</td>
+                <td>Price</td>
+                <td>PriceUnit</td>
+                <td>TypicalContQty</td>
+                <td>TypicalPltQty</td>
+            </tr>
+        </thead>
+        <tbody>
+            {% for ff in materials %}
+            <tr>
+                <td>{{ ff.id }}{{ff.id.value }}&nbsp;&nbsp;</td>
+                <td>({{ ff.instance.org.orgname }}) {{ ff.Material.value }} {% render_field ff.org hidden=True %}{% render_field ff.Material hidden=True %}</td>
+                <td>{% render_field ff.Price style="width:6em;" %}</td>
+                <td>{% render_field ff.PriceUnit style="width:6em;" %}</td>
+                <td>{% render_field ff.TypicalContainerQty style="width:6em;" %}</td>
+                <td>{% render_field ff.TypicalPalletQty style="width:6em;" %} </td>
+            </tr>
+            <tr style="border-bottom:thin solid;">
+                <td colspan=3>{% render_field ff.Description size="50" %}</td>
+                <td colspan=3>Notes: {% render_field ff.Notes size="50" %}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+    <!-- form footer -->
+    <br>
+    <div class="container">
+        <div class="row mx-auto max-width=100%">
+            <div class="col-3">
+                <button id="save_btn" type="submit">
+                    <img src="{% static 'poem-poetry-icon.svg' %}" width="20" height="20"></img>
+                    Save changes
+                </button>
+            </div>
+            <div class="col-5">
+                <button id="add_btn" type="button">
+                    <img src="{% static 'addition-color-outline-icon.svg' %}" width="20" height="20"></img>
+                    Add Part Type
+                </button>
+                <button id="remv_btn" type="button">
+                    <img src="{% static 'database-remove-icon.svg' %}" width="20" height="20"></img>
+                    Remove Part Type
+                </button>
+            </div>
+            <div class="col-2">
+            </div>
+            <div class="col">
+                <button id="close_btn" type="button">
+                    <img src="{% static 'stop-road-sign-icon.svg' %}" width="20" height="20"></img>
+                    Close Form
+                </button>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Somewhat generic Modal -->
+<!-- later, allow btn-default to be chosen -->
+<div id="modalYesNo" >
+    <div id="modal_question">
+    </div>
+    <input type="hidden" name="modelextrainfo" id="model_extra_info"></input>
+</div>
+
+<script>
+    // var $forms = $(".trackformchanges");
+    var $forms = document.getElementById("FmMain").querySelectorAll(":scope input");
+    var initialState
+    var $gotoTextBox = $("#gotoID");
+    var $ModalYesNo = $("#modalYesNo")
+
+    // because Bootstrap (nor jQuery) "modals" aren't really modal, execution must transfer to the modal, then wait until the modal triggers an answering function
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+
+    const mapPartTypes = new Map();
+    {% for PT in gotoForm.choicelist %}
+        mapPartTypes.set('{{PT.WhsePartType}}', {{PT.id}})
+    {% endfor %}
+
+    //-----------------------------
+
+    $(document).ready(function() {
+        initialState = serialize($forms);
+        $("#remv_btn").attr("disabled",({{ materials.management_form.TOTAL_FORMS.value }}!=0 || {{ showID|default_if_none:0 }}==0))
+        $("#add_btn").attr("disabled",({{ showID|default_if_none:0 }}==0))
+        });
+    document.body.onbeforeunload = function() {
+        document.getElementById("wait_spinner").style.display = "block";
+        }
+
+    //------------------------
+
+    function isFormChanged() {
+        currState = serialize($forms);
+        return !(initialState === currState);
+    };
+    
+    //------------------
+
+    // close this form if no changes here, or user abandons changes
+    // later, duplicate this for closeform (see document.body.onbeforeunload)
+    document.getElementById("close_btn").addEventListener("click",
+        function(evobj){
+            confirmLeave(closeform, fnIgnore)
+        });
+    function closeform() {
+        window.close()
+    }
+
+    //------------------------
+
+    // go to another Part Type if no changes here, or user abandons changes
+    function processGoToRec() {
+        if (mapPartTypes.has($gotoTextBox.val())) {
+            confirmLeave(loadMaterialRec, fnIgnore)
+        } else {
+            $ModalYesNo.dialog("option","title","Bad Part Type");
+            document.getElementById("modal_question").innerHTML = "There is no such Part Type as ".concat($gotoTextBox.val())
+    
+            $ModalYesNo.dialog("option","buttons", [])
+            
+            $ModalYesNo.dialog("open");
+            $gotoTextBox.val('')
+            return;    
+        }
+    };
+    function loadMaterialRec() {
+        var realID;
+        if (mapPartTypes.has($gotoTextBox.val())) {
+            realID = mapPartTypes.get($gotoTextBox.val())
+            document.getElementById("realGotoID").value = realID
+            newRec = "{% url 'ReloadPTypForm' 0 %}"
+            newRec = newRec.replace("/0","/".concat(realID));
+            window.location = newRec;
+            // document.getElementById("gotoForm").submit()
+        } else {
+            $ModalYesNo.dialog("option","title","Bad Part Type");
+            document.getElementById("modal_question").innerHTML = "There is no such Part Type as ".concat($gotoTextBox.val())
+    
+            $ModalYesNo.dialog("option","buttons", [])
+            
+            $ModalYesNo.dialog("open");
+            $gotoTextBox.val('')
+            return;    
+        }
+    };
+
+    function fnIgnore() {}  // does nothing
+
+    //-----------------------
+
+    function confirmLeave(modalYes_fn, modalNo_fn) {
+
+        if (isFormChanged()) {
+            $ModalYesNo.dialog("option","title","Leave Record?");
+            document.getElementById("modal_question").innerHTML = "This record has changed<br>Do you really want to leave without saving?"
+
+            $ModalYesNo.dialog("option","buttons", 
+                { 
+                    "Yes": function() { 
+                        modalYes_fn();
+                        $(this).dialog("close"); },
+                    "No" : function() {
+                        modalNo_fn();
+                        $(this).dialog("close"); }
+                }
+                )
+            
+            $ModalYesNo.dialog("open");
+        } else {
+            modalYes_fn();
+        }
+    };
+
+    //---------------------------
+
+    $("#add_btn").on("click",addNewPartTypeRec)
+
+    function addNewPartTypeRec(event) {
+        newRec = "{% url 'ReloadPTypForm' 0 %}"
+        window.location = newRec;
+    };
+
+    //---------------------------------
+
+    $("#remv_btn").on("click",remvPartTypeRec)
+
+    // do you really want to remove this record?
+    function remvPartTypeRec(event) {
+
+        if ({{ materials.management_form.TOTAL_FORMS.value }}!=0 || {{ showID|default_if_none:0 }}==0) {
+            $ModalYesNo.dialog("option","title","Cannot Remove Record");
+            document.getElementById("modal_question").innerHTML = "There are Materials with Part Type {{frmMain.WhsePartType.value}}.  You cannot remove it."
+    
+            $ModalYesNo.dialog("option","buttons", [])
+            
+            $ModalYesNo.dialog("open");
+            return;    
+        }
+
+        R = parseInt({{ showID }})
+
+        $ModalYesNo.dialog("option","title","Remove Record?");
+        document.getElementById("modal_question").innerHTML = "Are you sure you want to remove Part Type {{frmMain.WhsePartType.value}}?"
+
+        $ModalYesNo.dialog("option","buttons", 
+            {
+                "Yes": function() { 
+                    doRemove(R);
+                    $(this).dialog("close");
+                },
+                "No" : function() {
+                    $(this).dialog("close");
+                }
+            }
+            )
+        
+        $ModalYesNo.dialog("open");
+    };
+    function doRemove(RecNum) {
+        newRec = "{% url 'DeletePTyp' 0 %}"
+        newRec = newRec.replace("/0","/".concat(RecNum));
+        window.location = newRec;
+};
+
+    //---------------------------
+
+    // helpers for the Modal Form
+    
+    // handle return from Modal
+    $("#modalYesNo").dialog({
+        autoOpen: false,
+        closeOnEscape: false,
+        modal: true,
+        hide: "puff",
+        position: {
+            my: "top center", at: "top center"
+        }
+        /***
+        buttons: {
+            "Yes": function() {
+                yesno_chosen(true);
+                $(this).dialog("close");
+            },
+            "No":  function() {
+                yesno_chosen(false);
+                $(this).dialog("close");
+            }
+        }
+        ***/
+    });
+
+</script>
+
+{% endblock %}

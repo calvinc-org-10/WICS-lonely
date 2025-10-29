@@ -1,0 +1,184 @@
+{% extends "WICS_common.html" %}
+{% load widget_tweaks %}
+{% load static %}
+
+{% block customCSS %}
+button:focus {
+    border-color:#9ecaed;   <!-- convert to rgba -->
+    box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    -webkit-box-shadow: 0 0 5px rgba(0, 0, 255, 1); 
+    -moz-box-shadow: 0 0 5px rgba(0, 0, 255, 1);
+    border:1px solid rgba(0,0,255, 0.8); 
+}
+{% include "proposed-table-CSS.css" %}
+{% endblock %}
+
+{% block tTitle %}Requested Counts{% endblock %}
+{% block formName %}
+    Requested Counts
+    {% if ShowFilled %}
+    <br>(Including Filled Requests)
+    {% endif %}
+{% endblock %}
+{% block statusMsgs %}
+    {% if changes_saved.main %}
+        <div class="alert alert-success p-0 alert-dismissible fade show">
+            <button type="button" class="btn-close p-0" data-bs-dismiss="alert"></button>
+            Count record {{ changes_saved.main }} successfully saved.
+            ChData: {{ changed_data.main }}
+        </div>
+    {% endif %}
+{% endblock %}
+
+{% block boddy %}
+<hr>
+
+{% if frmMain.total_error_count %}
+<div>
+    nfe: {{frmMain.non_form_errors}}
+    <br>
+    fm errs: {{frmMain.errors}}
+</div>
+<hr>
+{%endif%}
+<form method="post" id="ReqSchdForm">
+{% csrf_token %}
+{{ frmMain.management_form }}
+    <div class="container"><table id="mainReport">
+    <thead>
+    <tr>
+        <td></td>
+        <td>CountDate</td>
+        <td>Requestor</td>
+        <td>Material</td>
+        <td>Counter</td>
+        <td>Priority</td>
+        <td>Reason Scheduled</td>
+        <td>Request Filled</td>
+    </tr>
+    </thead>
+    <tbody>
+    {% for itm in frmMain %}
+    <tr>
+        <td>
+            {{ itm.id }}
+            {{ itm.instance.id }}&nbsp;&nbsp;
+        </td>
+        <td>{% render_field itm.CountDate size="10" %}</td>
+        <td>{% render_field itm.Requestor size="10" %}</td>
+        <td>{{ itm.instance.Material.Material }}
+            {# constructing this by hand because it must be present, but django doesn't render it the way I want #}
+            {# Material is r/o (hidden) in this form #}
+            <input type="hidden" name="{{ itm.Material.html_name }}" id="{{ itm.Material.auto_id }}" value="{{ itm.Material.value }}"></input>
+        </td> 
+        <td>{% render_field itm.Counter size="10" %}</td>
+        <td>{% render_field itm.Priority size="10" %}</td>
+        <td>{% render_field itm.ReasonScheduled size="10" %}</td>
+        <td>{% render_field itm.RequestFilled %}</td>
+    </tr>
+    {% if itm.instance.hascounts %}
+    <tr>
+        <td></td>
+        <td colspan=7><b>COUNTS HAVE BEEN RECORDED FOR THIS DAY AND MATERIAL</b></div>
+    </tr>
+    {% endif %}
+    <tr style="border-bottom:thin solid;">
+        <td></td>
+        <td colspan=7><b>Schedule Notes:</b>  {% render_field itm.Notes size="80" %}</td>
+    </tr>
+    {% endfor %}
+    </tbody>
+    </table></div>
+</form>
+
+<!-- form footer -->
+<hr>
+<div class="container">
+    <div class="row mx-auto max-width=100%">
+        <div class="col-4">
+            <button id="save_btn" type="submit" form="ReqSchdForm">
+                <img src="{% static 'poem-poetry-icon.svg' %}" width="20" height="20"></img>
+                Save changes
+            </button>
+            <button 
+                id="add_btn" 
+                type="button">
+                <img src="{% static 'addition-color-outline-icon.svg' %}" width="20" height="20"></img>
+                New Request
+            </button>
+        </div>
+        <div class="col-4">
+        </div>
+        <div class="col-4">
+            <button id="showFilled_btn" type="button" onclick="showFilled();">
+                {% if ShowFilled %}
+                    Hide
+                {% else %}
+                    Show
+                {% endif %} 
+                Filled
+            </button>
+            <button id="swap_prt_disp_btn" type="button" class="d-print-none" onclick="swap_prt_disp();">Print Version</button>
+            <button 
+                id="close_btn" 
+                type="button" 
+                onclick="window.close();">
+                <img src="{% static 'stop-road-sign-icon.svg' %}" width="20" height="20"></img>
+                Close Form
+            </button>
+        </div>
+    </div>
+    <div class="row">
+        <b class="text-info">
+            This form should record changes now (you CANNOT change the Material number).  I've tested it, but I won't swear to it being foolproof.
+            Let me know if anything goes wonky.  - Calvin C
+        </b>
+    </div>
+</div>
+
+<script>
+    var mainscroll = "height:350px; overflow:auto;"
+
+    //---------------------------
+
+    document.body.onbeforeunload = function() {
+        document.getElementById("wait_spinner").style.display = "block";
+        }
+
+    //---------------------------
+
+    $("#add_btn").on("click",addNewCountReqSchedRec)
+
+    function addNewCountReqSchedRec(event) {
+        newRec = "{% url 'RequestCountScheduleForm' %}"
+        window.open(newRec,'_blank')
+        };
+
+    //----------------------------
+
+    function swap_prt_disp() {
+        // remove scroll from mainReport so it can be printed or put it back for a scrolling window
+        let scrollval = $("#mainReport").attr("style");
+        if (scrollval==undefined) {
+            $("#mainReport").attr("style",mainscroll)
+            $("#swap_prt_disp_btn").html("Print Version")
+        } else {
+            $("#mainReport").removeAttr("style")
+            $("#swap_prt_disp_btn").html("Display Version")
+        }
+    }
+
+    //----------------------------
+
+    function showFilled() {
+        {% if ShowFilled %}
+        newurl = "{% url 'RequestCountListEditShowFilled' 0 %}"
+        {% else %}
+        newurl = "{% url 'RequestCountListEditShowFilled' 1 %}"
+        {% endif %}
+        window.location = newurl
+    }
+
+    </script>
+
+{% endblock %}
