@@ -25,7 +25,6 @@ from sqlalchemy.orm.session import make_transient
 # there's no need to import cMenu, plus it's a circular ref - cMenu depends heavily on this module
 # from .kls_cMenu import cMenu 
 
-from _newcode import _NUM_menuBUTTONS, Nochoice
 from cMenu.utils import areYouSure, cComboBoxFromDict, cSimpleRecordForm_Base, cstdTabWidget
 from menuformname_viewMap import FormNameToURL_Map
 

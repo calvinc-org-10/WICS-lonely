@@ -246,7 +246,9 @@ class cQRecordsetView(QWidget):
                 idx += 1
             else:
                 widg = self.scrolllayout.takeAt(idx)
-                widg.widget().deleteLater() # del the widget
+                WTD = widg.widget()
+                if isinstance(WTD, QWidget):
+                    WTD.deleteLater() # del the widget
             # endif child == self._btnAdd
             child = self.scrolllayout.itemAt(idx)
     # init_recSet
