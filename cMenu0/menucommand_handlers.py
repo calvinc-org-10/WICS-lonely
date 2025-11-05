@@ -1,8 +1,6 @@
 from typing import (Dict, List, Mapping, Tuple, Any, )
 import copy
 
-import webbrowser
-
 from PySide6.QtCore import (Qt, QObject,
     Signal, Slot, 
     QAbstractTableModel, QModelIndex, )
@@ -29,7 +27,6 @@ from sqlalchemy.orm.session import make_transient
 
 from cMenu.utils import areYouSure, cComboBoxFromDict, cSimpleRecordForm_Base, cstdTabWidget
 from menuformname_viewMap import FormNameToURL_Map
-from externalWebPageURL_Map import ExternalWebPageURL_Map
 
 from .database import cMenu_Session
 from .dbmenulist import (MenuRecords, newgroupnewmenu_menulist, newmenu_menulist, )
@@ -777,17 +774,6 @@ class cWidgetMenuItem(cSimpleRecordForm_Base):
     ##########################################
     ########    Update
 
-    @Slot()
-    # def changeField(self):
-    def changeField(self, wdgt, dbField, wdgt_value, force=False):
-        super().changeField(wdgt, dbField, wdgt_value, force=False)
-    # changeField
-
-    @Slot()
-    def on_save_clicked(self):
-        super().on_save_clicked()
-        self.requestMenuReload.emit()   # let listeners know we need a menu reload
-    # on_save_clicked
 
     ##########################################
     ########    Delete
@@ -829,27 +815,8 @@ class cWidgetMenuItem(cSimpleRecordForm_Base):
         self.fillFormFromcurrRec()
 
         self.requestMenuReload.emit()   # let listeners know we need a menu reload
-    # on_delete_clicked
+    # delete_record
 
-    # ##########################################
-    # ########    Record Status
-
-    def isNewRecord(self) -> bool:
-        # temporary for testing
-        return super().isNewRecord()
-    # isNewRecord
-    
-    @Slot()
-    def setDirty(self, wdgt, dirty: bool = True):
-        # temporary for testing
-        super().setDirty(wdgt, dirty)
-    # setFormDirty
-    
-    def isDirty(self, widg = None) -> bool:
-        #temporary for testing
-        return super().isDirty(widg)
-    # isFormDirty
-    
     ##########################################
     ########    Widget-responding procs
 
@@ -897,9 +864,9 @@ class cWidgetMenuItem(cSimpleRecordForm_Base):
                 self.requestMenuReload.emit()   # let listeners know we need a menu reload
             #endif CMChoiceCopy
         # #endif retval
+
         return
     # copyMenuOption
-    
 # class cWidgetMenuItem
 
 class cEditMenu(QWidget):
@@ -1019,11 +986,9 @@ class cEditMenu(QWidget):
                 int(self.combobxMenuID.currentText()) if ret==self.DialogCode.Accepted else None,
                 )
 
-    def __init__(self, parent:QWidget|None = None, MainMenuWindow:QWidget|None = None):
+    def __init__(self, parent:QWidget|None = None):
         super().__init__(parent)
 
-        self.MainMenuWindow = MainMenuWindow
-        
         self.layoutMain: QBoxLayout = QVBoxLayout(self)
         # self.layoutMain.setContentsMargins(5,5,5,5)        
         self.layoutmainMenu: QGridLayout = QGridLayout()
@@ -1237,11 +1202,7 @@ class cEditMenu(QWidget):
         #endwhile not testrec.isEmpty():
         
         return None
-    # movetoutil_findrecwithvalue
-    
     def displayMenu(self):
-        from cMenu.cMenu import cMenu as cMenuClass
-
         menuGroup = self.intmenuGroup
         menuID = self.intmenuID
         menuItemRecs = self.currentMenu
@@ -1269,16 +1230,12 @@ class cEditMenu(QWidget):
         for bNum in range(_NUM_menuBUTTONS):
             y, x = ((bNum % _NUM_menuBTNperCOL)+1, 0 if bNum < _NUM_menuBTNperCOL else 2)
             bIndx = bNum+1
-            # mnuItmRc = self.movetoutil_findrecwithvalue(menuItemRecs, 'OptionNumber', bIndx)  # this is safer, but the line below is faster and is same in this case
-            mnuItmRc = menuItemRecs.get(bIndx)
+            mnuItmRc = self.movetoutil_findrecwithvalue(menuItemRecs, 'OptionNumber', bIndx)
             if not mnuItmRc:
                 mnuItmRc = menuItems(
                     MenuGroup_id=menuGroup,
                     MenuID=menuID,
                     OptionNumber=bIndx,
-                    OptionText = '',
-                    Argument = '',
-                    PWord = ''
                 )
             oldWdg = self.WmenuItm[bNum]
             if oldWdg:
@@ -1289,8 +1246,6 @@ class cEditMenu(QWidget):
 
             self.WmenuItm[bNum] = self.wdgtmenuITEM(mnuItmRc)
             self.WmenuItm[bNum].requestMenuReload.connect(lambda: self.loadMenu(self.intmenuGroup, self.intmenuID))
-            if isinstance(self.MainMenuWindow, cMenuClass):
-                self.WmenuItm[bNum].requestMenuReload.connect(self.MainMenuWindow.refreshMenu)
             self.layoutmainMenu.addWidget(self.WmenuItm[bNum],y,x) 
         # endfor
 
@@ -1655,22 +1610,6 @@ class OpenTable(QWidget):
     def addRow(self):
         self.model.insertRow(self.model.rowCount())
 
-
-#############################################
-#############################################
-
-class loadExternalWebPage():
-    def __init__(self, webPgKey:str, parent:QWidget|None = None):
-        url = ExternalWebPageURL_Map.get(webPgKey, None)
-        if url:
-            self.reloadPage(url)
-    # __init__
-    
-    def reloadPage(self, url:str):
-        webbrowser.open_new_tab(url)
-    # reloadPage
-
-
 #############################################
 #############################################
 #############################################
@@ -1682,7 +1621,7 @@ class _internalForms:
     # RunCode = ''
     RunSQLStatement = '.-ruN-sql.-'
     # ConstructSQLStatement = ''
-    # LoadExtWebPage = '.-lod-ext-wbpg.-'
+    # LoadExtWebPage = ''
     # ChangePW = ''
     # EditParameters = ''
     # EditGreetings = ''

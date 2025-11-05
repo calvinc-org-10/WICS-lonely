@@ -183,14 +183,8 @@ class cMenu(QWidget):
             msg.setWindowTitle('Menu Doesn\'t Exist')
             msg.setIcon(QMessageBox.Icon.Warning)
             msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-            msg.setText(f'Menu {menuID} doesn\'t exist!')
+            msg.setText(f'Menu {menuID} does\'t exist!')
             msg.open()
-    # loadMenu
-
-    @Slot()
-    def refreshMenu(self):
-        self.loadMenu(self.intmenuGroup, self.intmenuID)
-    # refreshMenu
     
     @Slot()
     def handleMenuButtonClick(self):
@@ -224,16 +218,15 @@ class cMenu(QWidget):
                 self.open_childScreen(CmdFm, frm)
         # elif MENUCOMMANDS.get(CommandNum) == 'ConstructSQLStatement':
         #    pass
-        elif MENUCOMMANDS.get(CommandNum)  == 'LoadExtWebPage':
-            menucommand_handlers.loadExternalWebPage(CommandArg)
-            return
+        # elif MENUCOMMANDS.get(CommandNum)  == 'LoadExtWebPage':
+        #     return
             # retHTTP = fn_LoadExtWebPage(req, CommandArg)
         # elif MENUCOMMANDS.get(CommandNum) == 'ChangePW':
         #     return
             # return redirect('change_password')
         elif MENUCOMMANDS.get(CommandNum) == 'EditMenu':
             CmdFm = menucommand_handlers._internalForms.EditMenu
-            frm = menucommand_handlers.FormBrowse(self, CmdFm, MainMenuWindow=self)
+            frm = menucommand_handlers.FormBrowse(self, CmdFm)
             if frm: 
                 self.open_childScreen(CmdFm, frm)
         # elif MENUCOMMANDS.get(CommandNum) == 'EditParameters':
