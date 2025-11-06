@@ -1,25 +1,21 @@
 
 from typing import Any
 from sqlalchemy.orm import (DeclarativeBase, Mapped, mapped_column, relationship, Session, )
-from sqlalchemy import (Column, Integer, MetaData, String, Boolean, ForeignKey, SmallInteger, UniqueConstraint, inspect, )
+from sqlalchemy import (
+    Column, MetaData, 
+    Integer, String, Boolean, SmallInteger, Float,
+    ForeignKey, UniqueConstraint, Index,
+    inspect, 
+    )
 from sqlalchemy.exc import IntegrityError
 
-from random import randint
+# from random import randint
 
 from PySide6.QtCore import (QObject, )
 from PySide6.QtWidgets import (QApplication, )
-from .utils import (pleaseWriteMe, )
+# from cMenu.utils import (pleaseWriteMe, )
 
-from .database import cMenu_Session
-from .menucommand_constants import MENUCOMMANDS, COMMANDNUMBER
-from .dbmenulist import (newgroupnewmenu_menulist, )
-
-
-tblName_menuGroups = 'cMenu_menuGroups'
-tblName_menuItems = 'cMenu_menuItems'
-tblName_cParameters = 'cMenu_cParameters'
-tblName_cGreetings = 'cMenu_cGreetings'
-
+from .database import app_Session
 
 ix_naming_convention = {
     "ix": "ix_%(column_0_label)s",
@@ -30,7 +26,7 @@ ix_naming_convention = {
 }
 ix_metadata_obj = MetaData(naming_convention=ix_naming_convention)
 
-class cMenuBase(DeclarativeBase):
+class cAppModelBase(DeclarativeBase):
     __abstract__ = True
     metadata = ix_metadata_obj
     # This class is used to define the base for SQLAlchemy models, if needed.
@@ -43,6 +39,7 @@ class cMenuBase(DeclarativeBase):
         :param value: The value to set for the field.
         """
         setattr(self, field, value)
+    # setValue()
     
     def getValue(self, field: str) -> Any:
         """
@@ -51,276 +48,41 @@ class cMenuBase(DeclarativeBase):
         :return: The value of the field.
         """
         return getattr(self, field, None)
-
-    # these look good on paper, but I need the caller to have control over the Session. Best to let caller do all the heavy lifting
-    # def save(self, session: Session = cMenu_Session()):
-    #     """
-    #     Save the current instance to the database.
-    #     :param session: Optional SQLAlchemy session to use for saving.
-    #     If not provided, a new session will be created.
-    #     """
-    #     if session is None:
-    #         session = cMenu_Session()
-    #     try:
-    #         session.add(self)
-    #         session.commit()
-    #     except IntegrityError:
-    #         session.rollback()
-    #         raise
-    #     finally:
-    #         session.close()
-    
-    # def delete(self, session: Session = cMenu_Session()) -> Any:
-    #     """
-    #     Delete the current instance from the database.
-    #     :param session: Optional SQLAlchemy session to use for deletion.
-    #     If not provided, a new session will be created.
-    #     """
-    #     if session is None:
-    #         session = cMenu_Session()
-    #     try:
-    #         session.delete(self)
-    #         session.commit()
-    #         retval = True
-    #     except IntegrityError as e:
-    #         session.rollback()
-    #         retval = e
-    #     except Exception as e:
-    #         session.rollback()
-    #         retval = e
-    #     finally:
-    #         session.close()
-
-    #     return retval
-
-class menuGroups(cMenuBase):
-    """
-    id = models.AutoField(primary_key=True)
-    GroupName = models.CharField(max_length=100, unique=True)
-    GroupInfo = models.CharField(max_length=250, default="")
-    """
-    
-    __tablename__ = tblName_menuGroups
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    GroupName: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
-    GroupInfo: Mapped[str] = mapped_column(String(250), default="", nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<menuGroups(id={self.id}, GroupName='{self.GroupName}')>"
-
-    def __str__(self) -> str:
-        return f"{self.GroupName} ({self.GroupInfo})"
-
-    @classmethod
-    def _createtable(cls, engine):
-        # Create tables if they don't exist
-        cMenuBase.metadata.create_all(engine)
-
-        session = Session(engine)
-        try:
-            # Check if any group exists
-            if not session.query(cls).first():
-                # Add starter group
-                starter = cls(GroupName="Group Name", GroupInfo="Group Info")
-                session.add(starter)
-                session.commit()
-                # Add default menu items for the starter group
-                starter_id = starter.id
-                menu_items = [
-                    menuItems(
-                        MenuGroup_id=starter_id, MenuID=0, OptionNumber=0, 
-                        OptionText='New Menu', 
-                        Command=None, Argument='Default', 
-                        PWord='', TopLine=True, BottomLine=True
-                        ),
-                    menuItems(
-                        MenuGroup_id=starter_id, MenuID=0, OptionNumber=11, 
-                        OptionText='Edit Menu', 
-                        Command=COMMANDNUMBER.EditMenu, Argument='', 
-                        PWord='', TopLine=None, BottomLine=None
-                        ),
-                    menuItems(
-                        MenuGroup_id=starter_id, MenuID=0, OptionNumber=19, 
-                        OptionText='Change Password', 
-                        Command=COMMANDNUMBER.ChangePW, Argument='', 
-                        PWord='', TopLine=None, BottomLine=None
-                        ),
-                    menuItems(
-                        MenuGroup_id=starter_id, MenuID=0, OptionNumber=20, 
-                        OptionText='Go Away!', 
-                        Command=COMMANDNUMBER.ExitApplication, Argument='', 
-                        PWord='', TopLine=None, BottomLine=None
-                        ),
-                    ]
-                session.add_all(menu_items)
-                session.commit()
-        except IntegrityError:
-            session.rollback()
-        finally:
-            session.close()
-
-        
-class menuItems(cMenuBase):
-    __tablename__ = tblName_menuItems
-    _rltblFld = 'MenuGroup_id'
-    _rltblName = tblName_menuGroups
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    MenuGroup_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblName}.id"))
-    MenuID: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    OptionNumber: Mapped[int] = mapped_column(SmallInteger, nullable=False)
-    OptionText: Mapped[str] = mapped_column(String(250), nullable=False, default="")
-    Command: Mapped[int] = mapped_column(Integer, nullable=True)
-    Argument: Mapped[str] = mapped_column(String(250), nullable=False, default="")
-    PWord: Mapped[str] = mapped_column(String(250), nullable=False, default="")
-    TopLine: Mapped[bool] = mapped_column(nullable=True)
-    BottomLine: Mapped[bool] = mapped_column(nullable=True)
-
-    __table_args__ = (
-        UniqueConstraint('MenuGroup_id', 'MenuID', 'OptionNumber'),     # Unique constraint for MenuGroup_id, MenuID, and OptionNumber
-        {'sqlite_autoincrement': True, # Enable autoincrement for the primary key
-         'extend_existing': True},
-    )
-    
-    def __repr__(self) -> str:
-        return f"<menuItems(id={self.id}, MenuID={self.MenuID}, OptionNumber={self.OptionNumber}, OptionText='{self.OptionText}')>"
-
-    def __str__(self) -> str:
-        return f"{self.OptionText} (ID: {self.MenuID}, Option: {self.OptionNumber})"
-
-    def __init__(self, **kw: Any):
-        """
-        Initialize a new menuItems instance. If the menu table doesn't exist, it will be created.
-        If the menuGroups table doesn't exist, it will also be created, and a starter group and menu will be added.
-        :param kw: Keyword arguments for the menuItems instance.
-        """
-        inspector = inspect(cMenu_Session().get_bind())
-        if not inspector.has_table(self.__tablename__):
-            # If the table does not exist, create it
-            cMenuBase.metadata.create_all(cMenu_Session().get_bind())
-            # Optionally, you can also create a starter group and menu here
-            menuGroups._createtable(cMenu_Session().get_bind())
-        #endif not inspector.has_table():
-        super().__init__(**kw)
-
-    # @classmethod
-    # def _createtable(cls, engine):
-    #     cMenuBase.metadata.create_all(engine)
-
-
-class cParameters(cMenuBase):
-    __tablename__ = tblName_cParameters
-
-    ParmName: Mapped[str] = mapped_column(String(100), primary_key=True)
-    ParmValue: Mapped[str] = mapped_column(String(512), nullable=False)
-    UserModifiable: Mapped[bool] = mapped_column(Boolean, nullable=False)
-    Comments: Mapped[str] = mapped_column(String(512), nullable=False)
-
-    def __repr__(self) -> str:
-        return f"<cParameters(ParmName='{self.ParmName}')>"
-
-    def __str__(self) -> str:
-        return f"{self.ParmName} ({self.ParmValue})"
-
-    # @classmethod
-    # def _createtable(cls, engine):
-    #     # Create tables if they don't exist
-    #     cMenuBase.metadata.create_all(engine, cls.)
-
-# def getcParm(req, parmname):
-# use code like below instead
-    # """
-    # Get the value of a parameter from the cParameters table.
-    # :param req: The request object (not used in this function).
-    # :param parmname: The name of the parameter to retrieve.
-    # :return: The value of the parameter or an empty string if not found.
-    # """
-    # session = cMenu_Session()
-    # try:
-    #     param = session.query(cParameters).filter_by(ParmName=parmname).first()
-    #     return param.ParmValue if param else ''
-    # finally:
-    #     session.close()
-
-# def setcParm(req, parmname, parmvalue):
-    # """Set the value of a parameter in the cParameters table.
-    # :param req: The request object (not used in this function).
-    # :param parmname: The name of the parameter to set.
-    # :param parmvalue: The value of the parameter to set.
-    # """
-
-
-class cGreetings(cMenuBase):
-    """
-    id = models.AutoField(primary_key=True)
-    Greeting = models.CharField(max_length=2000)
-    """
-    __tablename__ = tblName_cGreetings
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    Greeting: Mapped[str] = mapped_column(String(2000), nullable=False)
-    __table_args__ = (
-        {'sqlite_autoincrement': True,
-         'extend_existing': True},
-    )
-    
-    def __repr__(self) -> str:
-        return f"<cGreetings(id='{self.id}', Greeting='{self.Greeting}')>"
-
-    def __str__(self) -> str:
-        return f"{self.Greeting} (ID: {self.id})"
-
-
-cMenuBase.metadata.create_all(cMenu_Session().get_bind())
-# Ensure that the tables are created when the module is imported
-menuGroups._createtable(cMenu_Session().get_bind())
-menuItems() #._createtable(cMenu_Session().get_bind())
-cParameters() #._createtable(cMenu_Session().get_bind())
-cGreetings() #._createtable(cMenu_Session().get_bind())
+    # getValue()
+# cAppModelBase
 
 ####################################################################################
 ####################################################################################
 ####################################################################################
 
-from typing import Any
-from django.contrib.auth.models import User
-from django.db import connection, models
-from django.db.models import F, Exists, OuterRef, Value, Case, When, Subquery, Max, Min, QuerySet
-from django.db.models.functions import Concat
-from django.http import HttpRequest
-from userprofiles.models import WICSuser
-from cMenu.utils import GroupConcat, dictfetchall, user_db
+class Organizations(cAppModelBase):
 
-from .models_async_comm import *
+    __tablename__ = 'organizations'
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    orgname: Mapped[str] = mapped_column(String(250), unique=True, nullable=False, default='')
 
-# I'm quite happy with automaintained pk fields, so I don't specify any
-
-class Organizations(models.Model):
-    orgname = models.CharField(max_length=250)
-
-    class Meta:
-        ordering = ['orgname']
+    def __repr__(self) -> str:
+        return f'<Organizations(id={self.id}, orgname="{self.orgname}")>'
 
     def __str__(self) -> str:
         return f'{self.orgname}'
-        # return super().__str__()
 
 ###########################################################
 ###########################################################
 
-class WhsePartTypes(models.Model):
-    WhsePartType = models.CharField(max_length=50)
-    PartTypePriority = models.SmallIntegerField(null=True)
-    InactivePartType = models.BooleanField(blank=True, default=False)
+class WhsePartTypes(cAppModelBase):
 
-    class Meta:
-        ordering = ['WhsePartType']
-        constraints = [
-                models.UniqueConstraint(fields=['WhsePartType'], name='PTypeUNQ_PType'),
-            ]
+    __tablename__ = 'whseparttypes'
 
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    WhsePartType: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
+    PartTypePriority: Mapped[int] = mapped_column(SmallInteger, nullable=True)
+    InactivePartType: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
+
+    def __repr__(self) -> str:
+        return f'<WhsePartTypes(id={self.id}, WhsePartType="{self.WhsePartType}")>'
+    
     def __str__(self) -> str:
         return f'{self.WhsePartType}'
         # return super().__str__()
@@ -328,57 +90,68 @@ class WhsePartTypes(models.Model):
 ###########################################################
 ###########################################################
 
-##### Material_org prototype construction code cannot be
-##### fn.  It involves an OuterRef, which anchors to its
-##### Subquery.  Do not actually call this fn.  Use it as
-##### a prototype for each instance.
+# ##### Material_org prototype construction code cannot be
+# ##### fn.  It involves an OuterRef, which anchors to its
+# ##### Subquery.  Do not actually call this fn.  Use it as
+# ##### a prototype for each instance.
 
-def fnMaterial_org_constr(fld_matlName, fld_org, fld_orgname):
-    return Case(
-        When(Exists(MaterialList.objects.filter(Material=OuterRef(fld_matlName)).exclude(org=OuterRef(fld_org))),
-            then=Concat(F(fld_matlName), Value(' ('), F(fld_orgname), Value(')'), output_field=models.CharField())
-            ),
-        default=F(fld_matlName)
+# def fnMaterial_org_constr(fld_matlName, fld_org, fld_orgname):
+#     return Case(
+#         When(Exists(MaterialList.objects.filter(Material=OuterRef(fld_matlName)).exclude(org=OuterRef(fld_org))),
+#             then=Concat(F(fld_matlName), Value(' ('), F(fld_orgname), Value(')'), output_field=models.CharField())
+#             ),
+#         default=F(fld_matlName)
+#         )
+
+###########################################################
+###########################################################
+
+class MaterialList(cAppModelBase):
+
+    __tablename__ = 'materiallist'
+    _rltblOrgFld = 'org_id'
+    _rltblOrgName = 'organizations'
+    _rltblPtTypFld = 'PartType_id'
+    _rltblPtTypName = 'whseparttypes'
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=True)
+    Material : Mapped[str] = mapped_column(String(100), nullable=False)
+    Description : Mapped[str] = mapped_column(String(250), nullable=False, default='')
+    PartType_id : Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblPtTypName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=True, default=None)
+    Plant : Mapped[str] = mapped_column(String(20), nullable=True, default='')
+    SAPMaterialType : Mapped[str] = mapped_column(String(100), nullable=True, default='')
+    SAPMaterialGroup : Mapped[str] = mapped_column(String(100), nullable=True, default='')
+    SAPManuf : Mapped[str] = mapped_column(String(100), nullable=True, default='')
+    SAPMPN : Mapped[str] = mapped_column(String(100), nullable=True, default='')
+    SAPABC : Mapped[str] = mapped_column(String(5), nullable=True, default='')
+    Price : Mapped[float] = mapped_column(Float, nullable=True, default=0.0)
+    PriceUnit : Mapped[int] = mapped_column(Integer, nullable=True, default=1)
+    Currency : Mapped[str] = mapped_column(String(20), nullable=True, default='')
+    TypicalContainerQty : Mapped[str] = mapped_column(String(100), nullable=True, default=None)
+    TypicalPalletQty : Mapped[str] = mapped_column(String(100), nullable=True, default=None)
+    Notes : Mapped[str] = mapped_column(String(250), nullable=False, default='')
+
+    __table_args__ = (
+        UniqueConstraint('org_id', 'Material'),
+        Index('ix_materiallist_material', Material),
         )
-
-###########################################################
-###########################################################
-
-class MaterialList(models.Model):
-    org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=True)
-    Material = models.CharField(max_length=100)
-    Description = models.CharField(max_length=250, blank=True, default='')
-    PartType = models.ForeignKey(WhsePartTypes, null=True, on_delete=models.RESTRICT, default=None)
-    Plant = models.CharField(max_length=20, null=True, blank=True, default='')
-    SAPMaterialType = models.CharField(max_length=100, null=True, blank=True, default='')
-    SAPMaterialGroup = models.CharField(max_length=100, null=True, blank=True, default='')
-    SAPManuf = models.CharField(max_length=100, null=True, blank=True, default='')
-    SAPMPN = models.CharField(max_length=100, null=True, blank=True, default='')
-    SAPABC = models.CharField(max_length=5, null=True, blank=True, default='')
-    Price = models.FloatField(null=True, blank=True, default=0.0)
-    PriceUnit = models.PositiveIntegerField(null=True, blank=True, default=1)
-    Currency = models.CharField(max_length=20, null=True, blank=True, default='')
-    TypicalContainerQty = models.CharField(max_length=100, null=True, blank=True, default=None)
-    TypicalPalletQty = models.CharField(max_length=100, null=True, blank=True, default=None)
-    Notes = models.CharField(max_length=250, null=True, blank=True, default='')
-
-    class Meta:
-        ordering = ['org','Material']
-        constraints = [
-                models.UniqueConstraint(fields=['org', 'Material'],name="wics_materiallist_realpk"),
-            ]
-        indexes = [
-            models.Index(fields=['Material']),
-        ]
-
+    
+    def __repr__(self) -> str:
+        return f'<MaterialList(id={self.id}, Material="{self.Material}", org_id={self.org_id})>'
+    
     def __str__(self) -> str:
-        if MaterialList.objects.filter(Material=self.Material).exclude(org=self.org).exists():
-            # there is a Material with this number in another org; specify this org
-            # return str(self.Material) + ' (' + str(self.org) + ')'
-            return f'{self.Material} ({self.org})'
-        else:
-            return f'{self.Material}'
-class tmpMaterialListUpdate(models.Model):
+        # if MaterialList.objects.filter(Material=self.Material).exclude(org=self.org).exists():
+        #     # there is a Material with this number in another org; specify this org
+        #     # return str(self.Material) + ' (' + str(self.org) + ')'
+        #     return f'{self.Material} ({self.org})'
+        # else:
+        return f'{self.Material}'
+class tmpMaterialListUpdate(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     recStatus = models.CharField(max_length=32, null=True, blank=True)      # Error, Add, Del
     errmsg = models.CharField(max_length=256, null=True, blank=True)
     org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=True, null=True)
@@ -403,14 +176,22 @@ class tmpMaterialListUpdate(models.Model):
             models.Index(fields=['delMaterialLink']),
             ]
 
-class MaterialPhotos(models.Model):
+class MaterialPhotos(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     Material = models.ForeignKey(MaterialList, on_delete=models.RESTRICT)
     Photo = models.ImageField(upload_to='MatlImg/',height_field='height',width_field='width')
     height = models.IntegerField()
     width = models.IntegerField()
     Notes = models.CharField(max_length=250, null=True, blank=True, default='')
     
-class VIEW_materials(models.Model):
+class VIEW_materials(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     id = models.PositiveIntegerField(primary_key=True)
     org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=True, null=True)
     Material = models.CharField(max_length=100)
@@ -440,7 +221,11 @@ class VIEW_materials(models.Model):
        db_table = 'VIEW_materials'
        managed = False
 
-class MfrPNtoMaterial(models.Model):
+class MfrPNtoMaterial(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     MfrPN = models.CharField(max_length=250, null=False)
     Manufacturer = models.CharField(max_length=250, null=True, blank=True)
     Material = models.ForeignKey(MaterialList, on_delete=models.CASCADE)
@@ -457,7 +242,11 @@ class MfrPNtoMaterial(models.Model):
 ###########################################################
 ###########################################################
 
-class CountSchedule(models.Model):
+class CountSchedule(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     CountDate = models.DateField(null=False)
     Material = models.ForeignKey(MaterialList, on_delete=models.RESTRICT)
     Requestor = models.CharField(max_length=100, null=True, blank=True)
@@ -507,7 +296,11 @@ def VIEW_countschedule(db_to_use:HttpRequest|User|str) -> QuerySet:
 ###########################################################
 ###########################################################
 
-class ActualCounts(models.Model):
+class ActualCounts(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     CountDate = models.DateField(null=False, blank=False)
     CycCtID = models.CharField(max_length=100, null=True, blank=True)
     Material = models.ForeignKey(MaterialList, on_delete=models.RESTRICT)
@@ -597,7 +390,11 @@ def VIEW_LastFoundAtList(db_to_use:HttpRequest|User|str, matl=None):
 ###########################################################
 ###########################################################
 
-class SAP_SOHRecs(models.Model):
+class SAP_SOHRecs(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     uploaded_at = models.DateField()
     org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=True)
     MaterialPartNum = models.CharField(max_length=100)
@@ -624,7 +421,11 @@ class SAP_SOHRecs(models.Model):
             models.Index(fields=['Plant']),
         ]
 
-class UploadSAPResults(models.Model):
+class UploadSAPResults(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     errState = models.CharField(max_length=100, null=True)
     errmsg = models.CharField(max_length=512, null=True)
     rowNum = models.IntegerField(null=True)
@@ -632,11 +433,19 @@ class UploadSAPResults(models.Model):
     def __str__(self):
         return f'{self.errState}: {self.errmsg} at row {self.rowNum}'
 
-class SAPPlants_org(models.Model):
+class SAPPlants_org(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     SAPPlant = models.CharField(max_length=20, primary_key=True)
     org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=False)
 
-class UnitsOfMeasure(models.Model):
+class UnitsOfMeasure(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     UOM = models.CharField(max_length=50, unique=True)
     UOMText = models.CharField(max_length=100, blank=True, default='')
     DimensionText = models.CharField(max_length=100, blank=True, default='')
@@ -662,19 +471,27 @@ def VIEW_SAP(db_to_use:HttpRequest|User|str):
 ###########################################################
 ###########################################################
 
-class WorksheetZones(models.Model):
+class WorksheetZones(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     zone = models.IntegerField(primary_key=True)
     zoneName = models.CharField(max_length=10,blank=True)
 
 
-class Location_WorksheetZone(models.Model):
+class Location_WorksheetZone(cAppModelBase):
+
+    __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     location = models.CharField(max_length=50,blank=False)
     zone = models.ForeignKey(WorksheetZones, on_delete=models.RESTRICT)
 
 ###########################################################
 ###########################################################
 
-class WICSPermissions(models.Model):
+class WICSPermissions(cAppModelBase):
     class Meta:
         managed = False  # No database table creation or deletion  \
                          # operations will be performed for this model.
@@ -686,4 +503,16 @@ class WICSPermissions(models.Model):
 
 ###########################################################
 ###########################################################
+
+
+####################################################################################
+####################################################################################
+####################################################################################
+
+cAppModelBase.metadata.create_all(cMenu_Session().get_bind())
+# Ensure that the tables are created when the module is imported
+menuGroups._createtable(cMenu_Session().get_bind())
+menuItems() #._createtable(cMenu_Session().get_bind())
+cParameters() #._createtable(cMenu_Session().get_bind())
+cGreetings() #._createtable(cMenu_Session().get_bind())
 
