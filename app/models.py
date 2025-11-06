@@ -149,9 +149,27 @@ class MaterialList(cAppModelBase):
         return f'{self.Material}'
 class tmpMaterialListUpdate(cAppModelBase):
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+    __tablename__ = 'tmpmateriallistupdate'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+# gen by AI - review
+    recStatus: Mapped[str] = mapped_column(String(32), nullable=True)      # Error, Add, Del
+    errmsg: Mapped[str] = mapped_column(String(256), nullable=True)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{Organizations.__tablename__}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=True)
+    Material : Mapped[str] = mapped_column(String(100), nullable=False)
+    MaterialLink_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{MaterialList.__tablename__}.id"), onupdate="CASCADE", ondelete="SET NULL", nullable=True)
+    Description : Mapped[str] = mapped_column(String(250), nullable=True, default=None)
+    Plant : Mapped[str] = mapped_column(String(20), nullable=True, default='')
+    SAPMaterialType : Mapped[str] = mapped_column(String(100), nullable=True, default=None)
+    SAPMaterialGroup : Mapped[str] = mapped_column(String(100), nullable=True, default=None)
+    SAPManuf : Mapped[str] = mapped_column(String(100), nullable=True, default='')
+    SAPMPN : Mapped[str] = mapped_column(String(100), nullable=True, default='')
+    SAPABC : Mapped[str] = mapped_column(String(5), nullable=True, default='')
+    Price : Mapped[float] = mapped_column(Float, nullable=True, default=None)
+    PriceUnit : Mapped[int] = mapped_column(Integer, nullable=True, default=None)
+    Currency : Mapped[str] = mapped_column(String(20), nullable=True, default=None)
+    delMaterialLink : Mapped[int] = mapped_column(Integer, nullable=True)
+# original code
     recStatus = models.CharField(max_length=32, null=True, blank=True)      # Error, Add, Del
     errmsg = models.CharField(max_length=256, null=True, blank=True)
     org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=True, null=True)
@@ -169,6 +187,10 @@ class tmpMaterialListUpdate(cAppModelBase):
     Currency = models.CharField(max_length=20, null=True, blank=True)
     delMaterialLink = models.IntegerField(null=True)
 
+    __table_args__ = (
+        UniqueConstraint('org', 'Material', name='tmpmateriallistupdate_org_material_unq'),
+        )
+    
     class Meta:
         indexes = [
             models.Index(fields=['org','Material']),
@@ -176,6 +198,12 @@ class tmpMaterialListUpdate(cAppModelBase):
             models.Index(fields=['delMaterialLink']),
             ]
 
+    def __repr__(self) -> str:
+        return f'<tmpMaterialListUpdate(id={self.id}, Material="{self.Material}", org={self.org})>'
+
+    def __str__(self) -> str:
+        return f'{self.Material}'
+        
 class MaterialPhotos(cAppModelBase):
 
     __tablename__ = PUT_THE_TABLE_NAME_HERE
