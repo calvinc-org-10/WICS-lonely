@@ -4,7 +4,7 @@ import copy
 import webbrowser
 
 from PySide6.QtCore import (Qt, QObject,
-    Signal, Slot, 
+    Signal, Slot,
     QAbstractTableModel, QModelIndex, )
 # from PySide6.QtSql import (QSqlRecord, QSqlQuery, QSqlQueryModel, QSqlDatabase, )
 # from PySide6.QtSql import (QSqlQueryModel, )
