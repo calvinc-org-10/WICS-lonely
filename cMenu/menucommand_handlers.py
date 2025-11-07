@@ -6,8 +6,6 @@ import webbrowser
 from PySide6.QtCore import (Qt, QObject,
     Signal, Slot,
     QAbstractTableModel, QModelIndex, )
-# from PySide6.QtSql import (QSqlRecord, QSqlQuery, QSqlQueryModel, QSqlDatabase, )
-# from PySide6.QtSql import (QSqlQueryModel, )
 from PySide6.QtGui import (QFont, QIcon, )
 from PySide6.QtWidgets import ( QBoxLayout, QLayout, QStyle, QTabWidget, 
     QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QFrame, 
