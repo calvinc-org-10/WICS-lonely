@@ -340,35 +340,37 @@ class ActualCounts(cAppModelBase):
 
 class SAP_SOHRecs(cAppModelBase):
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+    __tablename__ = 'sap_sohrecs'
+    _rltblMatlFld = 'Material_id'
+    _rltblMatlName = MaterialList.__tablename__
+    _rltblOrgFld = 'org_id'
+    _rltblOrgName = Organizations.__tablename__
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    uploaded_at = models.DateField()
-    org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=True)
-    MaterialPartNum = models.CharField(max_length=100)
-    Material = models.ForeignKey(MaterialList,on_delete=models.SET_NULL,null=True)
-    Description = models.CharField(max_length=250, null=True, blank=True)
-    Plant = models.CharField(max_length=20, null=True, blank=True)
-    MaterialType = models.CharField(max_length=50, null=True, blank=True)
-    StorageLocation = models.CharField(max_length=20, null=True, blank=True)
-    BaseUnitofMeasure = models.CharField(max_length=20, null=True, blank=True)
-    Amount = models.FloatField(null=True, blank=True)
-    Currency = models.CharField(max_length=20, null=True, blank=True)
-    ValueUnrestricted = models.FloatField(null=True, blank=True)
-    SpecialStock = models.CharField(max_length=20, null=True, blank=True)
-    Blocked = models.FloatField(blank=True, null=True)
-    ValueBlocked = models.FloatField(blank=True, null=True)
-    Batch = models.CharField(max_length=20, blank=True, null=True)
-    Vendor = models.CharField(max_length=20, blank=True, null=True)
+    uploaded_at: Mapped[date] = mapped_column(Date, nullable=False)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
+    MaterialPartNum: Mapped[str] = mapped_column(String(100), nullable=False)
+    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="SET NULL", nullable=True)
+    Description: Mapped[str] = mapped_column(String(250), nullable=True)
+    Plant: Mapped[str] = mapped_column(String(20), nullable=True)
+    MaterialType: Mapped[str] = mapped_column(String(50), nullable=True)
+    StorageLocation: Mapped[str] = mapped_column(String(20), nullable=True)
+    BaseUnitofMeasure: Mapped[str] = mapped_column(String(20), nullable=True)
+    Amount: Mapped[float] = mapped_column(Float, nullable=True)
+    Currency: Mapped[str] = mapped_column(String(20), nullable=True)
+    ValueUnrestricted: Mapped[float] = mapped_column(Float, nullable=True)
+    SpecialStock: Mapped[str] = mapped_column(String(20), nullable=True)
+    Blocked: Mapped[float] = mapped_column(Float, nullable=True)
+    ValueBlocked: Mapped[float] = mapped_column(Float, nullable=True)
+    Batch: Mapped[str] = mapped_column(String(20), nullable=True)
+    Vendor: Mapped[str] = mapped_column(String(20), nullable=True)
+    Material: Mapped[MaterialList] = relationship(MaterialList, backref="sap_soh_recs")
 
-    class Meta:
-        get_latest_by = 'uploaded_at'
-        ordering = ['uploaded_at', 'org', 'MaterialPartNum']
-        indexes = [
-            models.Index(fields=['uploaded_at', 'org', 'MaterialPartNum']),
-            models.Index(fields=['Plant']),
-        ]
-
+    __table_args__ = (
+        Index('ix_sap_sohrecs_uploadedat_org_materialpartnum', 'uploaded_at', 'org_id', 'MaterialPartNum'),
+        Index('ix_sap_sohrecs_plant', 'Plant'),
+        )
+    
 class UploadSAPResults(cAppModelBase):
 
     __tablename__ = PUT_THE_TABLE_NAME_HERE
