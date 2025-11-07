@@ -371,85 +371,85 @@ class SAP_SOHRecs(cAppModelBase):
         Index('ix_sap_sohrecs_plant', 'Plant'),
         )
     
+    def __repr__(self) -> str:
+        return f'<SAP_SOHRecs(id={self.id}, uploaded_at="{self.uploaded_at}", org_id={self.org_id}, MaterialPartNum="{self.MaterialPartNum}")>' 
+    def __str__(self) -> str:
+        return f'{self.uploaded_at:%Y-%m-%d} / {self.org} / {self.MaterialPartNum}'
+    
 class UploadSAPResults(cAppModelBase):
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+    __tablename__ = 'uploadsapresults'
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    errState = models.CharField(max_length=100, null=True)
-    errmsg = models.CharField(max_length=512, null=True)
-    rowNum = models.IntegerField(null=True)
+    errState: Mapped[str] = mapped_column(String(100), nullable=True)
+    errmsg: Mapped[str] = mapped_column(String(512), nullable=True)
+    rowNum: Mapped[int] = mapped_column(Integer, nullable=True)
 
+    def __repr__(self):
+        return f'<UploadSAPResults(id={self.id}, errState="{self.errState}", rowNum={self.rowNum})>'
     def __str__(self):
         return f'{self.errState}: {self.errmsg} at row {self.rowNum}'
 
 class SAPPlants_org(cAppModelBase):
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+    __tablename__ = 'sapplants_org'
+    _rltblOrgFld = 'org_id'
+    _rltblOrgName = Organizations.__tablename__
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    SAPPlant = models.CharField(max_length=20, primary_key=True)
-    org = models.ForeignKey(Organizations, on_delete=models.RESTRICT, blank=False)
+    SAPPlant: Mapped[str] = mapped_column(String(20), nullable=False)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
 
-class UnitsOfMeasure(cAppModelBase):
+    def __repr__(self) -> str:
+        return f'<SAPPlants_org(id={self.id}, SAPPlant="{self.SAPPlant}", org_id={self.org_id})>'
+    def __str__(self) -> str:
+        return f'{self.SAPPlant} ({self.org})'
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+# TODO later    
+# class UnitsOfMeasure(cAppModelBase):
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    UOM = models.CharField(max_length=50, unique=True)
-    UOMText = models.CharField(max_length=100, blank=True, default='')
-    DimensionText = models.CharField(max_length=100, blank=True, default='')
-    Multiplier1 = models.FloatField(default=1.0)
+#     __tablename__ = PUT_THE_TABLE_NAME_HERE
 
-def VIEW_SAP(db_to_use:HttpRequest|User|str):
-    dbUsing = user_db(db_to_use)
-
-    return SAP_SOHRecs.objects.using(dbUsing).all()\
-        .annotate(
-            Material_org=Case(
-                When(Exists(MaterialList.objects.using(dbUsing).filter(Material=OuterRef('MaterialPartNum')).exclude(org=OuterRef('org'))),
-                    then=Concat(F('MaterialPartNum'), Value(' ('), F('org__orgname'), Value(')'), output_field=models.CharField())
-                    ),
-                default=F('MaterialPartNum')
-                ),
-            Description = F('Material__Description'),
-            Notes = F('Material__Notes'),
-            mult = Subquery(UnitsOfMeasure.objects.using(dbUsing).filter(UOM=OuterRef('BaseUnitofMeasure')).values('Multiplier1')[:1])
-            )
-            # do I need to annotate OrgName?
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     UOM = models.CharField(max_length=50, unique=True)
+#     UOMText = models.CharField(max_length=100, blank=True, default='')
+#     DimensionText = models.CharField(max_length=100, blank=True, default='')
+#     Multiplier1 = models.FloatField(default=1.0)
 
 ###########################################################
 ###########################################################
 
-class WorksheetZones(cAppModelBase):
+# TODO later
+# class WorksheetZones(cAppModelBase):
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+#     __tablename__ = PUT_THE_TABLE_NAME_HERE
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    zone = models.IntegerField(primary_key=True)
-    zoneName = models.CharField(max_length=10,blank=True)
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     zone = models.IntegerField(primary_key=True)
+#     zoneName = models.CharField(max_length=10,blank=True)
 
 
-class Location_WorksheetZone(cAppModelBase):
+# class Location_WorksheetZone(cAppModelBase):
 
-    __tablename__ = PUT_THE_TABLE_NAME_HERE
+#     __tablename__ = PUT_THE_TABLE_NAME_HERE
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    location = models.CharField(max_length=50,blank=False)
-    zone = models.ForeignKey(WorksheetZones, on_delete=models.RESTRICT)
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     location = models.CharField(max_length=50,blank=False)
+#     zone = models.ForeignKey(WorksheetZones, on_delete=models.RESTRICT)
 
 ###########################################################
 ###########################################################
 
-class WICSPermissions(cAppModelBase):
-    class Meta:
-        managed = False  # No database table creation or deletion  \
-                         # operations will be performed for this model.
-        default_permissions = () # disable "add", "change", "delete"
-                                 # and "view" default permissions
-        permissions = [
-            ('Material_onlyview', 'For restricting Material Form to view only'),
-        ]
+#TODO later
+# class WICSPermissions(cAppModelBase):
+#     class Meta:
+#         managed = False  # No database table creation or deletion  \
+#                          # operations will be performed for this model.
+#         default_permissions = () # disable "add", "change", "delete"
+#                                  # and "view" default permissions
+#         permissions = [
+#             ('Material_onlyview', 'For restricting Material Form to view only'),
+#         ]
 
 ###########################################################
 ###########################################################
@@ -459,10 +459,6 @@ class WICSPermissions(cAppModelBase):
 ####################################################################################
 ####################################################################################
 
-cAppModelBase.metadata.create_all(cMenu_Session().get_bind())
+cAppModelBase.metadata.create_all(app_Session().get_bind())
 # Ensure that the tables are created when the module is imported
-menuGroups._createtable(cMenu_Session().get_bind())
-menuItems() #._createtable(cMenu_Session().get_bind())
-cParameters() #._createtable(cMenu_Session().get_bind())
-cGreetings() #._createtable(cMenu_Session().get_bind())
 
