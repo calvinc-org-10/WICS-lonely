@@ -2,7 +2,6 @@
 # import testforms
 import forms
 from userprofiles.views import fnWICSuserForm
-from django.shortcuts import render, redirect
 
 
 # def LoadAdmin(parent):

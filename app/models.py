@@ -374,7 +374,7 @@ class SAP_SOHRecs(cAppModelBase):
     def __repr__(self) -> str:
         return f'<SAP_SOHRecs(id={self.id}, uploaded_at="{self.uploaded_at}", org_id={self.org_id}, MaterialPartNum="{self.MaterialPartNum}")>' 
     def __str__(self) -> str:
-        return f'{self.uploaded_at:%Y-%m-%d} / {self.org} / {self.MaterialPartNum}'
+        return f'{self.uploaded_at:%Y-%m-%d} / {self.org_id} / {self.MaterialPartNum}'
     
 class UploadSAPResults(cAppModelBase):
 
@@ -403,7 +403,7 @@ class SAPPlants_org(cAppModelBase):
     def __repr__(self) -> str:
         return f'<SAPPlants_org(id={self.id}, SAPPlant="{self.SAPPlant}", org_id={self.org_id})>'
     def __str__(self) -> str:
-        return f'{self.SAPPlant} ({self.org})'
+        return f'{self.SAPPlant} ({self.org_id})'
 
 # TODO later    
 # class UnitsOfMeasure(cAppModelBase):

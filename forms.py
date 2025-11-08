@@ -18,9 +18,8 @@ from PySide6.QtWidgets import (QApplication, QWidget, QScrollArea, QMessageBox, 
     QSizePolicy, QTabWidget, QTextEdit,
     )
 
-from django.apps import apps
-from django.db.models import Q, Model
 from cMenu.utils import cDataList, cDictModel, cComboBoxFromDict, cQRecordsetView
+from cMenu.utils import pleaseWriteMe
 
 
 _DATE_FORMAT = 'yyyy-MM-dd'
@@ -32,14 +31,6 @@ fontFormTitle.setPointSize(24)
 
 ##########################################################
 ##########################################################
-
-def pleaseWriteMe(parent, addlmessage):
-    msg = QMessageBox(parent)
-    msg.setWindowTitle('Please Write Me')
-    msg.setIcon(QMessageBox.Icon.Warning)
-    msg.setStandardButtons(QMessageBox.StandardButton.Ok)
-    msg.setText(f'Calvin needs to get up off his butt and write some code\n{addlmessage}')
-    msg.open()
 
 ##########################################################
 ##########################################################
