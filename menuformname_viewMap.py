@@ -1,7 +1,7 @@
 
 # import testforms
 import forms
-from userprofiles.views import fnWICSuserForm
+# from userprofiles.views import fnWICSuserForm
 
 
 # def LoadAdmin(parent):
@@ -15,7 +15,8 @@ def LoadAdmin():
 
 FormNameToURL_Map = {}
 # FormNameToURL_Map['menu Argument'.lower()] = (url, view)
-FormNameToURL_Map['l10-wics-uadmin'.lower()] = (None, fnWICSuserForm)
+# FormNameToURL_Map['l10-wics-uadmin'.lower()] = (None, fnWICSuserForm)
+FormNameToURL_Map['l10-wics-uadmin'.lower()] = (None, None)
 FormNameToURL_Map['l6-wics-uadmin'.lower()] = FormNameToURL_Map['l10-wics-uadmin']
 FormNameToURL_Map['django-admin'.lower()] = (None, LoadAdmin)
 FormNameToURL_Map['frmcount-schedulehistory-by-counterdate'.lower()] = ('CountScheduleList', None)

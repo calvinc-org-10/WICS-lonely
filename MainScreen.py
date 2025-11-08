@@ -3,6 +3,7 @@
 from PySide6.QtCore import (QCoreApplication, QMetaObject, )
 from PySide6.QtWidgets import (QWidget, QVBoxLayout, QScrollArea )
 
+from sysver import (_appname, sysver)
 from cMenu.cMenu import cMenu
 
 
@@ -25,6 +26,6 @@ class MainScreen(QWidget):
     # __init__
 
     def retranslateUi(self):
-        self.setWindowTitle(self.tr("WICS-Lonely"))
+        self.setWindowTitle(self.tr(_appname + " " + sysver['DEV']))
     # retranslateUi
 

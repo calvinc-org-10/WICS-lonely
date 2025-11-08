@@ -1,7 +1,8 @@
-_base_ver_major=3
-_base_ver_minor=9
-_base_ver_patch='1b'
-_ver_date='2024-07-01'
+_appname='WICS-lonely'
+_base_ver_major=4
+_base_ver_minor=0
+_base_ver_patch='0'
+_ver_date='2025-11-15'
 _base_ver = f'{_base_ver_major}.{_base_ver_minor}.{_base_ver_patch}'
 sysver = {
     'DEV': f'DEV{_base_ver}', 
@@ -9,6 +10,10 @@ sysver = {
     'DEMO': f'DEMO{_base_ver}'
     } 
 
+# Changelog:
+# 4.0.0 - 2025-11-15 Initial release of WICS Standalone
+# 3.9.3 - 2024-09-15 Added dbUsing to various places to support demo vs prod db
+# 3.9.2 - 2024-08-15 Bug fix - corrected demo vs prod db usage in views.py
 # 3.9.1b - 2024-07-01 - bug fix - tried passing req to Upl CE async
 # 3.9.1a - 2024-06-28 - bug fix - add dbUsing (etc) to views.py
 # 3.9.1 - 2024-06-21 - modifying code to use demo db if user is demo

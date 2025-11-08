@@ -1,11 +1,9 @@
 WICS = Warehouse Inventory Control System
+WICS-lonely is a standalone version of WICS, as well as (another) major rewrite
 
-WICS3 is a Major rewrite of WICS.  Goals:
-Users are not tied to an organization.  The org they're in will be default, but they can switch without logout/login
-Optimize queries, construct/use some SQL views (sorry, Django)
-Other stuff as outlined in the WICS3 project
+In many ways, WICS-lonely will be far simpler than WICS, since it will be a single-user system running on a local machine
 
-WICS uses Semantic Versioning - documented at https://semver.org/
+WICS still uses Semantic Versioning - documented at https://semver.org/, and WICS-lonely will start at version 4.0.0
 
 The main objects/tables in WICS are
  - Materials
@@ -13,4 +11,5 @@ The main objects/tables in WICS are
  - Actual Counts
  - SAP table
 
+There are several other supporting objects, but the above are the stars
  
