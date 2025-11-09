@@ -5,8 +5,8 @@ from django.forms import modelformset_factory
 from django.shortcuts import render
 from cMenu.utils import calvindate, user_db
 from userprofiles.models import WICSuser
-from WICS.forms import CountEntryForm, CountScheduleRecordForm, RequestCountScheduleRecordForm
-from WICS.forms import RelatedMaterialInfo, RelatedScheduleInfo
+from app.forms import CountEntryForm, CountScheduleRecordForm, RequestCountScheduleRecordForm
+from app.forms import RelatedMaterialInfo, RelatedScheduleInfo
 from WICS.procs_misc import HolidayList
 from WICS.models import VIEW_materials, ActualCounts
 from WICS.procs_CountSchedule import fnCountScheduleRecordExists

@@ -19,7 +19,7 @@ from cMenu.utils import modelobj_to_dict, calvindate, ExcelWorkbook_fileext, Exc
 from cMenu.views import user_db
 from mathematical_expressions_parser.eval import evaluate
 from WICS.globals import _defaultOrg
-from WICS.forms import MaterialForm, MaterialCountSummary, MfrPNtoMaterialForm, PartTypesForm
+from app.forms import MaterialForm, MaterialCountSummary, MfrPNtoMaterialForm, PartTypesForm
 from WICS.models import MaterialList, MaterialPhotos, VIEW_materials, WhsePartTypes, MfrPNtoMaterial
 from WICS.models import CountSchedule, ActualCounts, FoundAt
 from WICS.models import SAP_SOHRecs, UnitsOfMeasure #, VIEW_SAP
