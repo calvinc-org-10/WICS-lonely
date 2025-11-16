@@ -79,7 +79,9 @@ def FormBrowse(parntWind, formname, *args, **kwargs) -> Any|None:
             #     formname = f'{formname} exists but url {url} '
             # #endif
             pass
-        elif FormNameToURL_Map[formname][viewIndex]:
+        # endif FormNameToURL_Map[formname][urlIndex]:
+        # elif FormNameToURL_Map[formname][viewIndex]:
+        if FormNameToURL_Map[formname][viewIndex]:
             fn = None
             try:
                 fn = FormNameToURL_Map[formname][viewIndex]
@@ -88,6 +90,8 @@ def FormBrowse(parntWind, formname, *args, **kwargs) -> Any|None:
                 # fn = None
                 formname = f'{formname} exists but view {FormNameToURL_Map[formname][viewIndex]}'
             #end try
+        # endif FormNameToURL_Map[formname][viewIndex]:
+    # endif formname in FormNameToURL_Map:
     if not theForm:
         formname = f'Form {formname} is not built yet.  Calvin needs more coffee.'
         # print(formname)
