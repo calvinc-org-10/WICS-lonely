@@ -488,7 +488,7 @@ class SQLAlchemySQLQueryModel(QAbstractTableModel):
         
         SQLAlchemySQLQueryModel is read-only and does not support direct saves.
         """
-        pleaseWriteMe(self.parent(), 'SQLAlchemySQLQueryModel does not support saving changes directly.')
+        pleaseWriteMe('SQLAlchemySQLQueryModel does not support saving changes directly.', parent=self.parent())
         # with self.session_factory() as session:
         #     for row in self._data:
         #         session.merge(row)   # re-attach changes

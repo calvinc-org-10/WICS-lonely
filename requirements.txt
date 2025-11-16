@@ -7,3 +7,5 @@ QtAwesome==1.4.0
 openpyxl==3.1.5
 python-barcode
 
+python-dateutil
+

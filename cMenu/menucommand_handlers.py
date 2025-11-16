@@ -4,8 +4,10 @@ import copy
 import webbrowser
 
 from PySide6.QtCore import (Qt, QObject,
-    Signal, Slot,
+    Signal, Slot, 
     QAbstractTableModel, QModelIndex, )
+# from PySide6.QtSql import (QSqlRecord, QSqlQuery, QSqlQueryModel, QSqlDatabase, )
+# from PySide6.QtSql import (QSqlQueryModel, )
 from PySide6.QtGui import (QFont, QIcon, )
 from PySide6.QtWidgets import ( QBoxLayout, QLayout, QStyle, QTabWidget, 
     QWidget, QGridLayout, QHBoxLayout, QVBoxLayout, QFormLayout, QFrame, 
@@ -689,8 +691,16 @@ class cWidgetMenuItem(cSimpleRecordForm_Base):
     ##########################################
     ########    Layout
 
-    def _buildFormLayout(self) -> tuple[QBoxLayout, QTabWidget, QBoxLayout | None]:
-        layoutFormMain = QHBoxLayout(self)
+    # def _buildFormLayout(self) -> tuple[QBoxLayout, QTabWidget, QBoxLayout | None]:
+    def _buildFormLayout(self) -> Dict[str, QWidget|QLayout|None]:
+        
+        rtnDict: Dict[str, QWidget|QLayout|None] = {}
+
+        layoutMain = QVBoxLayout(self)
+        layoutMain.setContentsMargins(0,0,0,0)
+        layoutMain.setSpacing(0)
+
+        layoutFormMain = QHBoxLayout()
         layoutFormMain.setContentsMargins(0,0,0,0)
         layoutFormMain.setSpacing(0)
 
@@ -701,10 +711,26 @@ class cWidgetMenuItem(cSimpleRecordForm_Base):
         layoutFormMainRight.setContentsMargins(0,0,0,0)
         layoutFormMainRight.setSpacing(0)
 
-        return layoutFormMain, layoutFormMainLeft, layoutFormMainRight
+        layoutFormMain.addWidget(layoutFormMainLeft)
+        layoutFormMain.addLayout(layoutFormMainRight)
+        
+        rtnDict['layoutMain'] = layoutMain
+        rtnDict['layoutForm'] = layoutFormMain
+        rtnDict['layoutFormPages'] = layoutFormMainLeft
+        rtnDict['layoutButtons'] = layoutFormMainRight
+        
+        return rtnDict
     # _buildFormLayout
+    def _finalizeMainLayout(self, layoutMain: QVBoxLayout, items: List | Tuple) -> None:
+        items = [self.dictFormLayouts.get('layoutForm', None)]
+        return super()._finalizeMainLayout(layoutMain, items)
 
-    def _addActionButtons(self):
+    def _addActionButtons(self, 
+            layoutButtons:QBoxLayout|None = None,
+            layoutHorizontal: bool = True, 
+            NavActions: list[tuple[str, QIcon]]|None = None,
+            CRUDActions: list[tuple[str, QIcon]]|None = None,
+            ) -> None:
         self.btnCommit = QPushButton(self.tr('Save\nChanges'), self)
         self.btnCommit.clicked.connect(self.on_save_clicked)
         # self.btnCommit.setFixedSize(60, 30)  # Adjust width and height
@@ -720,31 +746,32 @@ class cWidgetMenuItem(cSimpleRecordForm_Base):
         # self.btnRemove.setFixedSize(60, 30)  # Adjust width and height
         self.btnRemove.setStyleSheet("padding: 2px; margin: 0;")  # Remove extra padding
 
-        assert isinstance(self.layoutButtons, QBoxLayout), 'layoutButtons must be a Box Layout'
-        self.layoutButtons.addWidget(self.btnMoveCopy)
-        self.layoutButtons.addWidget(self.btnRemove)
-        self.layoutButtons.addWidget(self.btnCommit)
+        assert isinstance(layoutButtons, QBoxLayout), 'layoutButtons must be a Box Layout'
+        layoutButtons.addWidget(self.btnMoveCopy)
+        layoutButtons.addWidget(self.btnRemove)
+        layoutButtons.addWidget(self.btnCommit)
     def _handleActionButton(self, action: str) -> None:
         # we have our own handlers, so no need to handle anything here
         return
     # _addActionButtons, _handleActionButton    
 
-    def _finalizeMainLayout(self):
-        assert isinstance(self.layoutMain, QBoxLayout), 'layoutMain must be a Box Layout'
+    # not needed 0 super() already does this
+    # def _finalizeMainLayout(self):
+    #     assert isinstance(self.layoutMain, QBoxLayout), 'layoutMain must be a Box Layout'
 
-        # lyout = getattr(self, 'layoutFormHdr', None)
-        # if isinstance(lyout, QLayout):
-        #     self.layoutMain.addLayout(lyout)
-        lyout = getattr(self, 'layoutForm', None)
-        if isinstance(lyout, QWidget):
-            self.layoutMain.addWidget(lyout)
-        lyout = getattr(self, 'layoutButtons', None)
-        if isinstance(lyout, QLayout):
-            self.layoutMain.addLayout(lyout)
-        # lyout = getattr(self, '_statusBar', None)
-        # if isinstance(lyout, QLayout):
-        #     self.layoutMain.addLayout(lyout)            #TODO: more flexibility in where status bar is placed
-    # _finalizeMainLayout
+    #     # lyout = getattr(self, 'layoutFormHdr', None)
+    #     # if isinstance(lyout, QLayout):
+    #     #     self.layoutMain.addLayout(lyout)
+    #     lyout = getattr(self, 'layoutForm', None)
+    #     if isinstance(lyout, QWidget):
+    #         self.layoutMain.addWidget(lyout)
+    #     lyout = getattr(self, 'layoutButtons', None)
+    #     if isinstance(lyout, QLayout):
+    #         self.layoutMain.addLayout(lyout)
+    #     # lyout = getattr(self, '_statusBar', None)
+    #     # if isinstance(lyout, QLayout):
+    #     #     self.layoutMain.addLayout(lyout)            #TODO: more flexibility in where status bar is placed
+    # # _finalizeMainLayout
 
 
     ######################################################
@@ -1406,7 +1433,7 @@ class cEditMenu(QWidget):
     @Slot()
     def rmvMenu(self):
         
-        pleaseWriteMe(self, 'Remove Menu')
+        pleaseWriteMe('Remove Menu', parent=self)
         return
         
         (mGrp, mnu, mOpt) = (self.currRec.MenuGroup, self.currRec.MenuID, self.currRec.OptionNumber)
@@ -1601,7 +1628,7 @@ class OpenTable(QWidget):
             
 
     def getTable(self, tblName:str): # -> Tuple[Exception|None, List[Dict[str, Any]], List[str]|str]:
-        pleaseWriteMe(self, 'fix getTable in class OpenTable')
+        pleaseWriteMe('fix getTable in class OpenTable', parent=self)
         # inputSQL:str = f'SELECT * FROM {tblName}'
         # # inputSQL:str = f'SELECT * FROM %(tblName)s'
         # sqlerr = None

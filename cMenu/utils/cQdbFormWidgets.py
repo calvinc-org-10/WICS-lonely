@@ -24,7 +24,7 @@ from sqlalchemy import (select, inspect, func, literal, )
 from sqlalchemy.orm import (Session, sessionmaker, )
 
 from .cQModels import (SQLAlchemyTableModel, )
-from .cQWidgets import (cDataList, cComboBoxFromDict, cstdTabWidget, )
+from .cQWidgets import (cDataList, cComboBoxFromDict, cstdTabWidget, cGridWidget, )
 from .messageBoxes import (areYouSure, )
 from .SQLAlcTools import (get_primary_key_column, )
 
@@ -900,10 +900,10 @@ class cSimpleRecordForm_Base(QWidget):
         pages (List): List of page/tab names for multi-page forms.
         fieldDefs (Dict[str, Dict[str, Any]]): Field definitions for the form.
     """
+    # TODO: be more careful with class attributes vs instance attributes
     _ORMmodel:Type[Any]|None = None
     _primary_key: Any
     _currRec: Any
-    _newrecFlag: QLabel
 
     _ssnmaker:sessionmaker[Session]|None = None
 
@@ -947,18 +947,51 @@ class cSimpleRecordForm_Base(QWidget):
                 raise ValueError("A sessionmaker must be provided either in the constructor or as a class attribute")
             self.setssnmaker(ssnmaker)
 
-        self.layoutMain, self.layoutForm, self.layoutButtons = self._buildFormLayout()
-        
-        self._buildPages()
+        dictFormLayouts = self._buildFormLayout()
+        assert isinstance(dictFormLayouts, dict), "_buildFormLayout must return a dict of layouts"
+        self.dictFormLayouts = dictFormLayouts
+        layoutMain = dictFormLayouts.get('layoutMain')
+        assert isinstance(layoutMain, (QVBoxLayout, )), "layoutMain must be a QVBoxLayout"
+        layoutFormHdr = dictFormLayouts.get('layoutFormHdr')
+        # assert isinstance(layoutFormHdr, (QGridLayout, )), "layoutFormHdr must be a QGridLayout"
+        layoutForm = dictFormLayouts.get('layoutForm')
+        # assert isinstance(layoutForm, QTabWidget), "layoutForm must be a QTabWidget"
+        self.layoutFormFixedTop = dictFormLayouts.get('layoutFormFixedTop')
+        if self.layoutFormFixedTop is not None:
+            assert isinstance(self.layoutFormFixedTop, QGridLayout), "layoutFormFixedTop must be a QGridLayout"
+        self.layoutFormPages = dictFormLayouts.get('layoutFormPages')
+        assert isinstance(self.layoutFormPages, QTabWidget), "layoutFormPages must be a QTabWidget"
+        self.layoutFormFixedBottom = dictFormLayouts.get('layoutFormFixedBottom')
+        if self.layoutFormFixedBottom is not None:
+            assert isinstance(self.layoutFormFixedBottom, QGridLayout), "layoutFormFixedBottom must be a QGridLayout"
+        self.layoutButtons = dictFormLayouts.get('layoutButtons')
+        assert isinstance(self.layoutButtons, (QHBoxLayout, QVBoxLayout)), "layoutButtons must be a QHBoxLayout or QVBoxLayout"
+        # rtnDict['statusBar'] = statusBar
+        self._statusBar = dictFormLayouts.get('statusBar')
+        if self._statusBar is not None:
+            assert isinstance(self._statusBar, QStatusBar), "statusBar must be a QStatusBar"
+        # rtnDict['lblFormName'] = lblFormName
+        # rtnDict['newrecFlag'] = newrecFlag
+        self._newrecFlag = self.dictFormLayouts.get('newrecFlag')
+
+        self._buildPages(self.layoutFormPages)
 
         # Let subclass build its widgets into self.layoutForm
-        self._placeFields()
+        self._placeFields(self.layoutFormPages, self.layoutFormFixedTop, self.layoutFormFixedBottom)
 
         # Add buttons
-        self._addActionButtons()
+        self._addActionButtons(self.layoutButtons)
 
         # Finalize layout
-        self._finalizeMainLayout()
+        self._finalizeMainLayout(
+            layoutMain=layoutMain,
+            items=[
+                layoutFormHdr,
+                layoutForm,
+                self.layoutButtons,
+                self._statusBar
+            ]
+        )
 
         self.initialdisplay()
 
@@ -1043,7 +1076,7 @@ class cSimpleRecordForm_Base(QWidget):
     ######################################################
     ########    Layout and field and Widget placement
 
-    def _buildFormLayout(self) -> tuple[QBoxLayout, QTabWidget, QBoxLayout|None]:
+    def _buildFormLayout(self) -> Dict[str, QWidget|QLayout|None]:
         """
         Build the main layout, form layout, and button layout. Must be implemented by subclasses.
         Creates and configures:
@@ -1085,10 +1118,10 @@ class cSimpleRecordForm_Base(QWidget):
         
         # self.setWindowTitle(self.tr(self._formname))
         
-        return layoutMain
+        # return layoutMain
     # _buildFormLayout
 
-    def _buildPages(self):
+    def _buildPages(self, layoutFormPages: QTabWidget) -> None:
         """Build the pages (tabs) for the form based on self.pages."""
         if self.numPages() < 1:
             # single page form
@@ -1104,7 +1137,7 @@ class cSimpleRecordForm_Base(QWidget):
             
             widg, grid = QWidget(), QGridLayout()
             widg.setLayout(grid)
-            self.layoutForm.addTab(widg, self.tr(pgnm))
+            layoutFormPages.addTab(widg, self.tr(pgnm))
         # endfor enum pages
     # _buildPages
     def FormPage(self, idx:int|str) -> QGridLayout|None:
@@ -1115,7 +1148,8 @@ class cSimpleRecordForm_Base(QWidget):
                 return None
         else:
             tabidx = idx
-        widg = self.layoutForm.widget(tabidx)
+        assert isinstance(self.layoutFormPages, QTabWidget), "layoutFormPages must be a QTabWidget"
+        widg = self.layoutFormPages.widget(tabidx)
         if widg is None:
             return None
         L = widg.layout()
@@ -1152,7 +1186,7 @@ class cSimpleRecordForm_Base(QWidget):
             widget.signalLookupSelected.connect(lambda *_: self.changeField(widget, widget._lookup_field, widget.Value()))
         #endif isinstance(widget)
     # bindField
-    def _placeFields(self, lookupsAllowed: bool = True) -> None:
+    def _placeFields(self, layoutFormPages:QTabWidget, layoutFormFixedTop: QGridLayout|None, layoutFormFixedBottom: QGridLayout|None, lookupsAllowed: bool = True) -> None:
         """
         Build widgets and wrap them into _cSimpRecFmElmnt_Base adapters.
         Args:
@@ -1285,7 +1319,16 @@ class cSimpleRecordForm_Base(QWidget):
 
             # Place in layout
             if isinstance(pos, tuple) and len(pos) >= 2:
-                fmLayout = self.FormPage(fmPg)
+                if fmPg == -1:
+                    # fixed top layout
+                    fmLayout = layoutFormFixedTop
+                elif fmPg == -2:
+                    # fixed bottom layout
+                    fmLayout = layoutFormFixedBottom
+                else:
+                    # page layout
+                    fmLayout = self.FormPage(fmPg)
+                # endif fmPg
                 if fmLayout is None:
                     raise ValueError(f"Form page {fmPg_indef} not found for field '{fldName}'")
                 fmLayout.addWidget(widget, *pos)
@@ -1296,7 +1339,8 @@ class cSimpleRecordForm_Base(QWidget):
         # endfor fldDef in self.fieldDefs
     # _placeFields
 
-    def _addActionButtons(self):
+    # def _addActionButtons(self, layoutButtons:QBoxLayout|None = None) -> None:
+    def _addActionButtons(self, layoutButtons:QBoxLayout|None) -> None:
         """Add action buttons to the form.
         
         Raises:
@@ -1317,23 +1361,28 @@ class cSimpleRecordForm_Base(QWidget):
         raise NotImplementedError
     # _handleActionButton
 
-    def _finalizeMainLayout(self):
+    def _finalizeMainLayout(self, layoutMain:QVBoxLayout, items:List|tuple) -> None:
         """Add all sub-layouts to the main layout in the correct order."""
-        assert isinstance(self.layoutMain, QBoxLayout), 'layoutMain must be a Box Layout'
-        
-        lyout = getattr(self, 'layoutFormHdr', None)
-        if isinstance(lyout, QLayout):
-            self.layoutMain.addLayout(lyout)
-        lyout = getattr(self, 'layoutForm', None)
-        if isinstance(lyout, QWidget):
-            self.layoutMain.addWidget(lyout)
-        lyout = getattr(self, 'layoutButtons', None)
-        if isinstance(lyout, QLayout):
-            self.layoutMain.addLayout(lyout)
-        lyout = getattr(self, '_statusBar', None)
-        if isinstance(lyout, QLayout):
-            self.layoutMain.addLayout(lyout)            #TODO: more flexibility in where status bar is placed
+        assert isinstance(layoutMain, QBoxLayout), 'layoutMain must be a Box Layout'
 
+        for itm in items:
+            if itm is None:
+                continue
+            elif isinstance(itm, QLayout):
+                layoutMain.addLayout(itm)
+            elif isinstance(itm, QWidget):
+                layoutMain.addWidget(itm)
+            elif isinstance(itm, (tuple, list)):
+                L = QVBoxLayout()
+                self._finalizeMainLayout(L, itm)
+                layoutMain.addLayout(L)
+            else:
+                raise TypeError('items must be QLayout, QWidget, or tuple/list of these')
+            # endif itm
+        # endfor itm in items
+        
+        # self.setLayout(layoutMain)
+        
     # _finalizeMainLayout
 
     ######################################################
@@ -1873,7 +1922,6 @@ class cSimpleRecordForm(cSimpleRecordForm_Base):
     Returns:
         _type_: _description_
     """
-    _formname = None
 
     def __init__(self, 
         model: Type[Any]|None = None, 
@@ -1889,6 +1937,7 @@ class cSimpleRecordForm(cSimpleRecordForm_Base):
             formname (str | None, optional): The name of the form. Defaults to None.
             parent (QWidget | None, optional): The parent widget. Defaults to None.
         """
+        self._formname = getattr(self, '_formname', None)
         if not self._formname:
             self._formname = formname if formname else 'Form'
 
@@ -1896,41 +1945,64 @@ class cSimpleRecordForm(cSimpleRecordForm_Base):
     
     # init
 
-    def _buildFormLayout(self) -> tuple[QBoxLayout, QTabWidget, QBoxLayout|None]:
+    def _buildFormLayout(self) -> Dict[str, QWidget|QLayout|None]:
         """Build the form layout for cSimpleRecordForm.
         
         Returns:
+            FIX ME!!
             tuple: (layoutMain, layoutForm, layoutButtons) containing the main layout,
                 tabbed form layout, and button layout.
         """
-        # returns tuple (layoutMain, layoutForm, layoutButtons)
 
+        rtnDict: Dict[str, QWidget|QLayout|None] = {}
+        
         layoutMain = QVBoxLayout(self)
-        layoutForm = cstdTabWidget()
+        layoutFormHdr = QHBoxLayout()
+        layoutForm = cGridWidget(scrollable=True)
+        layoutFormFixedTop = QGridLayout()
+        layoutFormPages = cstdTabWidget()
+        layoutFormFixedBottom = QGridLayout()
         layoutButtons = QHBoxLayout()  # may get redefined in _addActionButtons
-        self._statusBar = QStatusBar(self)
+        statusBar = QStatusBar(self)
+        
+        rtnDict['layoutMain'] = layoutMain
+        rtnDict['layoutFormHdr'] = layoutFormHdr
+        rtnDict['layoutForm'] = layoutForm
+        rtnDict['layoutFormFixedTop'] = layoutFormFixedTop
+        rtnDict['layoutFormPages'] = layoutFormPages
+        rtnDict['layoutFormFixedBottom'] = layoutFormFixedBottom
+        rtnDict['layoutButtons'] = layoutButtons
+        rtnDict['statusBar'] = statusBar
 
-        self.layoutFormHdr = QHBoxLayout()
+        # should this be in _finalizeMainLayout instead?
+        layoutForm.addLayout(layoutFormFixedTop, 0, 0)
+        layoutForm.addWidget(layoutFormPages, 1, 0)
+        layoutForm.addLayout(layoutFormFixedBottom, 2, 0)
+
         assert isinstance(self._formname, str), "_formname must be set before building form layout"
         lblFormName = cQFmNameLabel(self.tr(self._formname), self)
-        self.layoutFormHdr.addWidget(lblFormName)
+        layoutFormHdr.addWidget(lblFormName)
         
-        self._newrecFlag = QLabel("New Record", self)
+        newrecFlag = QLabel("New Record", self)
         fontNewRec = QFont()
         fontNewRec.setBold(True)
         fontNewRec.setPointSize(10)
         fontNewRec.setItalic(True)
-        self._newrecFlag.setFont(fontNewRec)
-        self._newrecFlag.setStyleSheet("color: red;")
-        self.layoutFormHdr.addWidget(self._newrecFlag)
+        newrecFlag.setFont(fontNewRec)
+        newrecFlag.setStyleSheet("color: red;")
+        layoutFormHdr.addWidget(newrecFlag)
         # self.showNewRecordFlag() # done when record displayed
+        
+        rtnDict['lblFormName'] = lblFormName
+        rtnDict['newrecFlag'] = newrecFlag
         
         self.setWindowTitle(self.tr(self._formname))
         
-        return  layoutMain, layoutForm, layoutButtons
+        return rtnDict
     # _buildFormLayout
 
     def _addActionButtons(self, 
+            layoutButtons:QBoxLayout|None = None,
             layoutHorizontal: bool = True, 
             NavActions: list[tuple[str, QIcon]]|None = None,
             CRUDActions: list[tuple[str, QIcon]]|None = None,
@@ -2245,16 +2317,33 @@ class cSimpRecSbFmRecord(cSimpRecFmElement_Base, cSimpleRecordForm_Base):
         # self.showNewRecordFlag(self.isNewRecord())
     # __init__
 
-    def _buildFormLayout(self) -> tuple[QBoxLayout, QTabWidget, QBoxLayout | None]:
+    def _buildFormLayout(self) -> Dict[str, QWidget|QLayout|None]:
         """Build the layout for a subrecord form element.
         
         Returns:
             tuple: (layoutMain, layoutForm, layoutButtons) where layoutButtons is None.
         """
 
+        rtnDict: Dict[str, QWidget|QLayout|None] = {}
+
         layoutMain = QVBoxLayout(self)
-        layoutForm = cstdTabWidget()
+        layoutForm = cGridWidget(scrollable=True)
+        layoutFormFixedTop = QGridLayout()
+        layoutFormPages = cstdTabWidget()
+        layoutFormFixedBottom = QGridLayout()
         self._statusBar = QStatusBar(self)
+
+        # should this be in _finalizeMainLayout instead?
+        layoutForm.addLayout(layoutFormFixedTop, 0, 0)
+        layoutForm.addWidget(layoutFormPages, 1, 0)
+        layoutForm.addLayout(layoutFormFixedBottom, 2, 0)
+
+        rtnDict['layoutMain'] = layoutMain
+        rtnDict['layoutForm'] = layoutForm
+        rtnDict['layoutFormFixedTop'] = layoutFormFixedTop
+        rtnDict['layoutFormPages'] = layoutFormPages
+        rtnDict['layoutFormFixedBottom'] = layoutFormFixedBottom
+        rtnDict['statusBar'] = self._statusBar
 
         self._newrecFlag = QLabel("New Rec", self)
         fontNewRec = QFont()
@@ -2265,7 +2354,9 @@ class cSimpRecSbFmRecord(cSimpRecFmElement_Base, cSimpleRecordForm_Base):
         self._newrecFlag.setStyleSheet("color: red;")
         layoutMain.addWidget(self._newrecFlag) # at top for visibility - different from main form
 
-        return layoutMain, layoutForm, None
+        rtnDict['newrecFlag'] = self._newrecFlag
+        
+        return rtnDict
     # _buildFormLayout
 
     def initialdisplay(self):
@@ -2278,12 +2369,13 @@ class cSimpRecSbFmRecord(cSimpRecFmElement_Base, cSimpleRecordForm_Base):
     ########    overrides of cSimpleRecordForm_Base methods
     #############################################################
 
-    def _placeFields(self, lookupsAllowed: bool = False) -> None:
+    # def _placeFields(self, lookupsAllowed: bool = False) -> None:
+    def _placeFields(self, layoutFormPages:QTabWidget, layoutFormFixedTop: QGridLayout|None, layoutFormFixedBottom: QGridLayout|None, lookupsAllowed: bool = True) -> None:
         """Place fields with lookups disabled."""
-        return super()._placeFields(lookupsAllowed = False)
+        return super()._placeFields(layoutFormPages, layoutFormFixedTop, layoutFormFixedBottom, lookupsAllowed = False)
     # _placeFields
     
-    def _addActionButtons(self):
+    def _addActionButtons(self, layoutButtons:QBoxLayout|None) -> None:
         """Add action buttons (none for subrecords)."""
         # no navigation buttons for subrecords
         return
@@ -2440,30 +2532,49 @@ class cSimpleRecordSubForm2(cSimpRecFmElement_Base, cSimpleRecordForm_Base):
     ######################################################
     ########    Layout and field and Widget placement
     
-    def _buildFormLayout(self) -> tuple[QBoxLayout, QTabWidget, QBoxLayout|None]:
+    def _buildFormLayout(self) -> Dict[str, QWidget|QLayout|None]:
         """Build the form layout for list-based subform.
         
         Returns:
             tuple: (layoutMain, layoutForm, layoutButtons) containing layouts.
         """
+
+        rtnDict: Dict[str, QWidget|QLayout|None] = {}
+        
         layoutMain = QVBoxLayout(self)
-        layoutForm = cstdTabWidget()
+        layoutForm = cGridWidget(scrollable=True)
+        layoutFormFixedTop = QGridLayout()
+        layoutFormPages = cstdTabWidget()
+        layoutFormFixedBottom = QGridLayout()
         layoutButtons = QHBoxLayout()  # may get redefined in _addActionButtons
         self._statusBar = QStatusBar(self)
+        
+        rtnDict['layoutMain'] = layoutMain
+        rtnDict['layoutForm'] = layoutForm
+        rtnDict['layoutFormFixedTop'] = layoutFormFixedTop
+        rtnDict['layoutFormPages'] = layoutFormPages
+        rtnDict['layoutFormFixedBottom'] = layoutFormFixedBottom
+        rtnDict['layoutButtons'] = layoutButtons
+        rtnDict['statusBar'] = self._statusBar
+
+        # should this be in _finalizeMainLayout instead?
+        layoutForm.addLayout(layoutFormFixedTop, 0, 0)
+        layoutForm.addWidget(layoutFormPages, 1, 0)
+        layoutForm.addLayout(layoutFormFixedBottom, 2, 0)
 
         viewClass = self.vwClass if hasattr(self, 'vwClass') else QListWidget
         self.dispArea = viewClass(parent=self)
-        layoutForm.addTab(self.dispArea, '')
+        layoutFormPages.addTab(self.dispArea, '')
         # self.Tblmodel = SQLAlchemyTableModel(self._model, self._ssnmaker, literal(False), parent=self)
         # FIXMEFIXMEFIXME!!!
         # not needed? each record widget handles its own data
         # self.dispArea.setModel(self.Tblmodel)  # yhis shouldn't work - change to handle link table <-> Tblmodel internally - use _childRecs?
         # self.layoutMain.addWidget(self.dispArea)
 
-        return layoutMain, layoutForm, layoutButtons
+        return rtnDict
     # _buildFormLayout
 
-    def _buildPages(self):
+    def _buildPages(self, layoutFormPages: QTabWidget) -> None:
         """Build pages (not used for list-based subforms - single page only)."""
         # nope, just the one page
         return
@@ -2486,16 +2597,17 @@ class cSimpleRecordSubForm2(cSimpRecFmElement_Base, cSimpleRecordForm_Base):
     #         self.layoutMain.addLayout(lyout)            #TODO: more flexibility in where status bar is placed
     # # _finalizeMainLayout
 
-    def _placeFields(self, lookupsAllowed: bool = True) -> None:
+    def _placeFields(self, layoutFormPages:QTabWidget, layoutFormFixedTop: QGridLayout|None, layoutFormFixedBottom: QGridLayout|None, lookupsAllowed: bool = True) -> None:
         """Place fields (handled by _addDisplayRow for list-based subforms)."""
         # field placement handled by _addDisplayRow, since they are placed in a list
         return 
     # _placeFields
     
-    def _addActionButtons(self):
+    def _addActionButtons(self, layoutButtons:QBoxLayout|None) -> None:
         """Add Add and Delete buttons to the subform."""
         # action buttons for add/remove
-        btnLayout = self.layoutButtons
+        # btnLayout = self.layoutButtons
+        btnLayout = layoutButtons
         assert isinstance(btnLayout, QBoxLayout), "layoutButtons must be a Box Layout"
         self.btnAdd = QPushButton("Add")
         self.btnDel = QPushButton("Delete")

@@ -21,7 +21,7 @@ from .dbmenulist import MenuRecords
 from sysver import sysver
 from .menucommand_constants import MENUCOMMANDS, COMMANDNUMBER
 from . import menucommand_handlers
-from .utils import (cComboBoxFromDict, pleaseWriteMe, )
+from .utils import (cComboBoxFromDict, pleaseWriteMe, cGridWidget, )
 
 # TODO: put in class?
 # cMenu-related constants
@@ -57,7 +57,9 @@ class cMenu(QWidget):
     def __init__(self, parent:QWidget|None, initMenu=(0,0)): # , mWidth=None, mHeight=None):
         super().__init__(parent)
         
-        self.menuLayout: QGridLayout = QGridLayout()
+        self.MasterLayout: QVBoxLayout = QVBoxLayout(self)
+        
+        self.menuLayout = cGridWidget(scrollable=True)
         self.menuButton: Dict[int, cMenu.menuBUTTON] = {}
         self.menuHdrLayout: QHBoxLayout = QHBoxLayout()
         self.lblmenuGroupID:  QLCDNumber = QLCDNumber(3)
@@ -70,14 +72,15 @@ class cMenu(QWidget):
         
         self.childScreens: Dict[str,QWidget] = {}
 
-        self.menuLayout.setColumnMinimumWidth(0,40)
-        self.menuLayout.setColumnStretch(1,1)
-        self.menuLayout.setColumnStretch(2,0)
-        self.menuLayout.setColumnStretch(3,1)
-        self.menuLayout.setColumnMinimumWidth(1,_SCRN_menuBTNWIDTH)
-        self.menuLayout.setColumnMinimumWidth(2,_SCRN_menuDIVWIDTH)
-        self.menuLayout.setColumnMinimumWidth(3,_SCRN_menuBTNWIDTH)
-        self.menuLayout.setColumnMinimumWidth(4,40)
+        layoutGrid = self.menuLayout.grid()
+        layoutGrid.setColumnMinimumWidth(0,40)
+        layoutGrid.setColumnStretch(1,1)
+        layoutGrid.setColumnStretch(2,0)
+        layoutGrid.setColumnStretch(3,1)
+        layoutGrid.setColumnMinimumWidth(1,_SCRN_menuBTNWIDTH)
+        layoutGrid.setColumnMinimumWidth(2,_SCRN_menuDIVWIDTH)
+        layoutGrid.setColumnMinimumWidth(3,_SCRN_menuBTNWIDTH)
+        layoutGrid.setColumnMinimumWidth(4,40)
         
         self.lblVersion.setFont(QFont("Arial",8))
         # self.lblmenuID.setMargin(10)
@@ -94,7 +97,7 @@ class cMenu(QWidget):
         self.menuHdrLayout.addLayout(self.layoutMenuID, stretch=0)
         self.menuHdrLayout.addSpacing(30)
         self.menuHdrLayout.addWidget(self.lblmenuName, stretch=1)
-        self.menuLayout.addLayout(self.menuHdrLayout,0,0,1,5)
+        self.MasterLayout.addLayout(self.menuHdrLayout)
         
         for bNum in range(_NUM_menuBTNperCOL):
             self.menuButton[bNum] = self.menuBUTTON(bNum+1)
@@ -107,7 +110,7 @@ class cMenu(QWidget):
             self.menuButton[bNum+_NUM_menuBTNperCOL].clicked.connect(self.handleMenuButtonClick)
         # endfor
 
-        self.setLayout(self.menuLayout)
+        self.MasterLayout.addWidget(self.menuLayout)
 
         self.loadMenu()
     # __init__

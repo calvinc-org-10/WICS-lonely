@@ -116,10 +116,10 @@ class MaterialList(cAppModelBase):
     _rltblPtTypName = WhsePartTypes.__tablename__
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=True)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=True)
     Material : Mapped[str] = mapped_column(String(100), nullable=False)
     Description : Mapped[str] = mapped_column(String(250), nullable=False, default='')
-    PartType_id : Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblPtTypName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=True, default=None)
+    PartType_id : Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblPtTypName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=True, default=None)
     Plant : Mapped[str] = mapped_column(String(20), nullable=True, default='')
     SAPMaterialType : Mapped[str] = mapped_column(String(100), nullable=True, default='')
     SAPMaterialGroup : Mapped[str] = mapped_column(String(100), nullable=True, default='')
@@ -159,9 +159,9 @@ class tmpMaterialListUpdate(cAppModelBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     recStatus: Mapped[str] = mapped_column(String(32), nullable=True)      # Error, Add, Del
     errmsg: Mapped[str] = mapped_column(String(256), nullable=True)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=True)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=True)
     Material : Mapped[str] = mapped_column(String(100), nullable=False)
-    MaterialLink: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="SET NULL", nullable=True)
+    MaterialLink: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
     Description : Mapped[str] = mapped_column(String(250), nullable=True)
     Plant : Mapped[str] = mapped_column(String(20), nullable=True, default='')
     SAPMaterialType : Mapped[str] = mapped_column(String(100), nullable=True)
@@ -175,7 +175,7 @@ class tmpMaterialListUpdate(cAppModelBase):
     delMaterialLink : Mapped[int] = mapped_column(Integer, nullable=True)
 
     __table_args__ = (
-        UniqueConstraint('org', 'Material', name='tmpmateriallistupdate_org_material_unq'),
+        UniqueConstraint('org_id', 'Material', name='tmpmateriallistupdate_org_material_unq'),
         Index('ix_tmpmateriallistupdate_recstatus', recStatus),
         Index('ix_tmpmateriallistupdate_delmateriallink', delMaterialLink),
         )
@@ -231,7 +231,7 @@ class CountSchedule(cAppModelBase):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     CountDate: Mapped[date] = mapped_column(Date, nullable=False)
-    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
+    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=False)
     Requestor: Mapped[str] = mapped_column(String(100), nullable=True, default=None)
     # do this when users implemented - Requestor_userid: Mapped[int] = mapped_column(Integer, ForeignKey(f"{WICSuser.__tablename__}.id"), onupdate="CASCADE", ondelete="SET NULL", nullable=True)
     Requestor_userid: Mapped[int] = mapped_column(Integer, nullable=True)
@@ -268,7 +268,7 @@ class ActualCounts(cAppModelBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     CountDate: Mapped[date] = mapped_column(Date, nullable=False)
     CycCtID: Mapped[str] = mapped_column(String(100), nullable=True)
-    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
+    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=False)
     Counter: Mapped[str] = mapped_column(String(250), nullable=False)
     LocationOnly: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
     CTD_QTY_Expr: Mapped[str] = mapped_column(String(500), nullable=True)
@@ -348,9 +348,9 @@ class SAP_SOHRecs(cAppModelBase):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     uploaded_at: Mapped[date] = mapped_column(Date, nullable=False)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=False)
     MaterialPartNum: Mapped[str] = mapped_column(String(100), nullable=False)
-    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="SET NULL", nullable=True)
+    Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id", onupdate="CASCADE", ondelete="SET NULL"), nullable=True)
     Description: Mapped[str] = mapped_column(String(250), nullable=True)
     Plant: Mapped[str] = mapped_column(String(20), nullable=True)
     MaterialType: Mapped[str] = mapped_column(String(50), nullable=True)
@@ -398,7 +398,7 @@ class SAPPlants_org(cAppModelBase):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     SAPPlant: Mapped[str] = mapped_column(String(20), nullable=False)
-    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
+    org_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblOrgName}.id", onupdate="CASCADE", ondelete="RESTRICT"), nullable=False)
 
     def __repr__(self) -> str:
         return f'<SAPPlants_org(id={self.id}, SAPPlant="{self.SAPPlant}", org_id={self.org_id})>'
