@@ -1,6 +1,6 @@
 
 # import testforms
-import forms
+import app.forms
 # from userprofiles.views import fnWICSuserForm
 
 

@@ -14,3 +14,17 @@ def str2(s: str, TypeTransforms={None: lambda:'', }, ValueTransforms={None: lamb
     if s in TypeTransforms:
         return TypeTransforms[s]()
     return str(s)
+
+def WrapInQuotes(strg, openquotechar = '"', closequotechar = '"'):
+    return openquotechar + strg + closequotechar
+# WrapInQuotes
+def UnWrapQuotes(strg, quotechar = '"'):
+    if strg.startswith(quotechar) and strg.endswith(quotechar):
+        return strg[1:-1]
+    return strg
+# UnWrapQuotes
+
+def IsWrappedInQuotes(strg, quotechar = '"'):
+    return strg.startswith(quotechar) and strg.endswith(quotechar)
+# IsWrappedInQuotes
+

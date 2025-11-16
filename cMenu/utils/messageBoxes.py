@@ -20,7 +20,8 @@ std_windowsize = QSize(1120,720)
 std_popdialogsize=QSize(400,300)
 
 
-def pleaseWriteMe(parent, addlmessage):
+# def pleaseWriteMe(parent, addlmessage):
+def pleaseWriteMe(addlmessage, parent):
     """Display a message box indicating that a feature needs to be implemented.
     
     Args:
