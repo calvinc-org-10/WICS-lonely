@@ -17,8 +17,11 @@ app_Session = sessionmaker(app_engine)
 def get_app_session():
     return app_Session()
 
+def get_app_sessionmaker():
+    return app_Session
+
 ##########################################################
 ###################    REPOSITORIES    ###################
 ##########################################################
 
-from cMenu.database import Repository
+from calvincTools.database import Repository

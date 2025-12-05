@@ -3,7 +3,7 @@
 from PySide6.QtWidgets import (
     QLabel, QLineEdit, QCheckBox, QPlainTextEdit, QDateEdit, 
     )
-from cMenu.utils import (cSimpleRecordForm, )
+from calvincTools.utils import (cSimpleRecordForm, )
 
 from app.database import app_Session
 from app.models import (MaterialList, ActualCounts, CountSchedule, WhsePartTypes, )
