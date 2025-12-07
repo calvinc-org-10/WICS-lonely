@@ -1,6 +1,7 @@
+from typing import (Any, )
 
 from PySide6.QtCore import (
-    Slot, 
+    Qt, Slot, 
     QMimeData, QUrl, 
     )
 from PySide6.QtGui import (
@@ -16,6 +17,8 @@ from PySide6.QtWidgets import (
     QFileDialog,
     )
 
+from qtawesome import icon
+
 from calvincTools.utils import (cSimpleRecordForm, )
 
 from app.database import (
@@ -28,13 +31,38 @@ from app.models import (
 
 
 
-class cFileDropButton(QPushButton):
-    def __init__(self, *args, **kwargs):
+class cFileSelectWidget(QWidget):
+    """A QPushButton that accepts file drops and opens a QFileDialog
+    with the dropped file pre-selected.
+    """
+    _btnChooseFile: QPushButton = QPushButton()
+    _lblFileChosen: QLabel = QLabel("No file chosen")
+    
+    def __init__(self, btnIcon=None, btnText="Pick or Drop File Here", *args, **kwargs):
+        # TODO: add parameters for initial directory, file filters, etc.
+        # TODO: TFacceptMultiFiles: bool = False
+        
         super().__init__(*args, **kwargs)
+        if btnIcon is not None:
+            self._btnChooseFile.setIcon(btnIcon)
+        self._btnChooseFile.setText(btnText)
+        self._btnChooseFile.setToolTip("Click to choose a file or drag and drop a file onto this button.")
+        self._btnChooseFile.clicked.connect(self.open_file_dialog_with_file)
+
         # 1. Essential: Tell the widget it accepts drops
         self.setAcceptDrops(True)
-        self.setText("Drop File Here")
+        
+        # Layout
+        layout = QHBoxLayout(self)
+        layout.addWidget(self._btnChooseFile)
+        layout.addWidget(self._lblFileChosen)
+        
     # __init__
+
+    # most method calls are actually for the push button inside
+    def __getattr__(self, name: str) -> Any:
+        """Delegate attribute access to the contained widget."""
+        return getattr(self._btnChooseFile, name, None)
 
     def dragEnterEvent(self, event: QDragEnterEvent):
         # 2. Check if the dragged data contains a list of URIs (files)
@@ -73,12 +101,17 @@ class cFileDropButton(QPushButton):
         #endif mime_data.hasUrls()
     # dropEvent
 
-    def open_file_dialog_with_file(self, file_path: str):
+    @Slot()
+    def open_file_dialog_with_file(self, file_path: str = ''):
         """Opens a QFileDialog pre-selecting the dropped file."""
         
         # Determine the directory and file name
         from PySide6.QtCore import QFileInfo
-        file_info = QFileInfo(file_path)
+        if not file_path:
+            file_info = QFileInfo()
+        else:
+            file_info = QFileInfo(file_path)
+        #endif file_path
         directory = file_info.dir().path()
         file_name = file_info.fileName()
 
@@ -89,7 +122,8 @@ class cFileDropButton(QPushButton):
             self,                               # Parent
             "File Dropped! Verify Selection",    # Dialog Title
             directory,                           # Initial Directory
-            "All Files (*)"                      # Filter
+            "All Files (*)",                     # Filter
+            file_name,                           # Pre-selected File Name
         )
 
         # QFileDialog.getOpenFileName does not automatically pre-select
@@ -99,14 +133,17 @@ class cFileDropButton(QPushButton):
         # show the user the path they dropped and confirm.
         
         # A workaround to truly pre-select the file in some systems/dialog styles:
-        selected_file, _ = QFileDialog.getOpenFileName(
-            self, "File Dropped! Verify Selection", file_path, "All Files (*)"
-        )
+        # selected_file, _ = QFileDialog.getOpenFileName(
+        #     self, "File Dropped! Verify Selection", file_path, "All Files (*)"
+        # )
 
         if selected_file:
-            print(f"User confirmed selection: {selected_file}")
+            self._lblFileChosen.setText(selected_file)
+            # Here you can handle the selected file as needed
+            # print(f"User confirmed selection: {selected_file}")
         else:
-            print("Dialog closed without confirming the selection.")
+            pass
+            # print("Dialog closed without confirming the selection.")
         #endif selected_file
     # open_file_dialog_with_file
 # cFileDropButton
@@ -131,20 +168,17 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         chooseFileWidget = QWidget()
         chooseFileLayout = QGridLayout(chooseFileWidget)
         lblChooseFileLabel = QLabel("Choose or Drop SAP Material List Spreadsheet File:")
-        btnChooseFile = cFileDropButton("Choose Spreadsheet File")
+        btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
         btnChooseFile.clicked.connect(self.chooseFile)
-        lblFileChosen = QLabel("No file chosen")
-        chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0, 1, 2)
+        chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
         chooseFileLayout.addWidget(btnChooseFile, 1, 0)
-        chooseFileLayout.addWidget(lblFileChosen, 1, 1)
         
         PhaseWidget = QWidget()
         PhaseLayout = QHBoxLayout(PhaseWidget)
-        PhaseLayout.setContentsMargins(0, 0, 0, 0)
         lblShowPhaseTitle = QLabel("Phase:")
         lblShowPhase = QLabel("No file chosen")
         PhaseLayout.addWidget(lblShowPhaseTitle)
-        PhaseLayout.addWidget(lblShowPhase)
+        PhaseLayout.addWidget(lblShowPhase, alignment=Qt.AlignmentFlag.AlignLeft)
         
         dict_chkUpdtOption = {}
         dict_chkUpdtOption['Desc'] = QCheckBox("Description")
@@ -159,13 +193,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         for chk in dict_chkUpdtOption.values():
             layoutUpdtOptions.addWidget(chk)
         
-        
         chkDoNotDelete = QCheckBox("Do Not Delete Records Not in Spreadsheet")
-        
-        btnUploadFile = QPushButton("Upload Data from Spreadsheet")
-        btnUploadFile.clicked.connect(self.uploadFile)
-        btnClose = QPushButton("Close Form")
-        btnClose.clicked.connect(self.closeForm)
         
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
         mainFormPage.addWidget(PhaseWidget, 2, 0)
@@ -175,8 +203,18 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     # _placeFields
     
     def _addActionButtons(self, layoutButtons: QBoxLayout | None = None, layoutHorizontal: bool = True, NavActions: list[tuple[str, QIcon]] | None = None, CRUDActions: list[tuple[str, QIcon]] | None = None) -> None:
-        # no action buttons here
+        btnUploadFile = QPushButton(icon('fa5s.file-upload'), "Upload Data from Spreadsheet")
+        btnUploadFile.clicked.connect(self.uploadFile)
+        btnClose = QPushButton(icon('mdi.close-octagon'), "Close Form")
+        btnClose.clicked.connect(self.closeForm)
+        
+        if layoutButtons is not None:
+            layoutButtons.addWidget(btnUploadFile, alignment=Qt.AlignmentFlag.AlignLeft)
+            layoutButtons.addStretch(1)
+            layoutButtons.addWidget(btnClose, alignment=Qt.AlignmentFlag.AlignRight)
         return
+    def _handleActionButton(self, action: str) -> None:
+        return super()._handleActionButton(action)
     
     def initialdisplay(self):
         self.showNewRecordFlag()
@@ -187,6 +225,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     @Slot()
     def chooseFile(self):
         # TODO: Implement file chooser logic
+        print("Choose File button clicked")
         pass
     
     @Slot()
