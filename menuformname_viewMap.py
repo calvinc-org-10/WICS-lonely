@@ -45,3 +45,5 @@ FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
 FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.WhsePartTypes)
 
 
+import _newcode as newcode
+FormNameToURL_Map['test01'.lower()] = ('', newcode.UpdateMatlListfromSAP)
