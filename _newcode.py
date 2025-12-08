@@ -6,7 +6,7 @@ from PySide6.QtCore import (
     )
 from PySide6.QtGui import (
     QDragEnterEvent, QDropEvent, 
-    QDesktopServices, QIcon, 
+    QIcon, 
     )
 from PySide6.QtWidgets import (
     QBoxLayout,
@@ -23,7 +23,7 @@ from calvincTools.utils import (cSimpleRecordForm, )
 
 from app.database import (
     get_app_sessionmaker, 
-    Repository 
+    # Repository 
     )
 from app.models import (
     tmpMaterialListUpdate, 
@@ -38,7 +38,7 @@ class cFileSelectWidget(QWidget):
     _btnChooseFile: QPushButton = QPushButton()
     _lblFileChosen: QLabel = QLabel("No file chosen")
     
-    def __init__(self, btnIcon=None, btnText="Pick or Drop File Here", *args, **kwargs):
+    def __init__(self, *args, btnIcon=None, btnText="Pick or Drop File Here", **kwargs):
         # TODO: add parameters for initial directory, file filters, etc.
         # TODO: TFacceptMultiFiles: bool = False
         
@@ -200,6 +200,8 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
         mainFormPage.addWidget(chkDoNotDelete, 2, 1)
         
+        self.wdgtUpdtStatusArea = layoutFormFixedTop
+
     # _placeFields
     
     def _addActionButtons(self, layoutButtons: QBoxLayout | None = None, layoutHorizontal: bool = True, NavActions: list[tuple[str, QIcon]] | None = None, CRUDActions: list[tuple[str, QIcon]] | None = None) -> None:
@@ -212,10 +214,24 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             layoutButtons.addWidget(btnUploadFile, alignment=Qt.AlignmentFlag.AlignLeft)
             layoutButtons.addStretch(1)
             layoutButtons.addWidget(btnClose, alignment=Qt.AlignmentFlag.AlignRight)
-        return
-    def _handleActionButton(self, action: str) -> None:
-        return super()._handleActionButton(action)
+        #endif layoutButtons
+    # def _handleActionButton(self, action: str) -> None:
+    #     return super()._handleActionButton(action)
+    # _add/handleActionButtons
     
+    def showUpdateStatus(self, statusText: str):
+        if self.wdgtUpdtStatusArea is not None:
+            # Clear previous status
+            for i in reversed(range(self.wdgtUpdtStatusArea.count())):
+                widgetToRemove = self.wdgtUpdtStatusArea.itemAt(i).widget() # type: ignore
+                if widgetToRemove is not None:
+                    widgetToRemove.setParent(None)
+            # Add new status label
+            lblStatus = QLabel(statusText)
+            self.wdgtUpdtStatusArea.addWidget(lblStatus, 0, 0)
+        #endif wdgtUpdtStatusArea
+    # showUpdateStatus
+
     def initialdisplay(self):
         self.showNewRecordFlag()
     
@@ -226,7 +242,6 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def chooseFile(self):
         # TODO: Implement file chooser logic
         print("Choose File button clicked")
-        pass
     
     @Slot()
     def uploadFile(self):
@@ -237,5 +252,42 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def closeForm(self):
         # TODO: Implement close form logic
         pass
-    
 
+    def changeInternalVarField(self, wdgt, _fieldName: str, _newValue: Any) -> None:
+        return
+
+class async_comm(models.Model):
+    reqid = models.CharField(max_length=255, primary_key=True)
+    timestamp = models.CharField(max_length=30, null=True)
+    processname = models.CharField(max_length=256, null=True, blank=True)
+    statecode = models.CharField(max_length=64, null=True, blank=True)
+    statetext = models.CharField(max_length=512, null=True, blank=True)
+    result = models.CharField(max_length=2048, null=True, blank=True)
+    extra1 = models.CharField(max_length=2048, null=True, blank=True)
+
+def set_async_comm_state(
+        dbToUse,
+        reqid, 
+        statecode,
+        statetext,
+        processname = None,
+        result = None,
+        extra1 = None,
+        new_async = False
+    ):
+    if new_async:
+        acomm = async_comm.objects.using(dbToUse).get_or_create(pk=reqid)
+    else:
+        acomm = async_comm.objects.using(dbToUse).get(pk=reqid)
+    # why does acomm sometimes come back as a tuple???
+    if isinstance(acomm, tuple): acomm = acomm[0]
+    
+    acomm.statecode = statecode
+    acomm.statetext = statetext
+    acomm.result = result
+    acomm.extra1 = extra1
+    if processname is not None: acomm.processname = processname
+    acomm.timestamp = datetime.now().__str__()
+    acomm.save(using=dbToUse)
+
+    return acomm
