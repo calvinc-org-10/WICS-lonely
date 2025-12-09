@@ -295,13 +295,37 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def uploadFile(self):
         reqid = 'unique-request-id'  # Generate or obtain a unique request ID
 
+        self.proc_MatlListSAPSprsheet_00InitUMLasync_comm(reqid)
+
+        # UMLSSName = self.proc_MatlListSAPSprsheet_00CopyUMLSpreadsheet(reqid)     # needed in a client-server environment, not for standalone
+        UMLSSName = self.btnChooseFile.getFileChosen()
+        self.proc_MatlListSAPSprsheet_01ReadSpreadsheet(reqid, UMLSSName)
+        self.done_MatlListSAPSprsheet_01ReadSpreadsheet(reqid)
+
+    @Slot()
+    def closeForm(self):
+        # TODO: Implement close form logic
+        pass
+
+    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
+        return
+
+    def proc_MatlListSAPSprsheet_00InitUMLasync_comm(self, reqid):
         acomm = set_async_comm_state(
             reqid,
             statecode = 'rdng-sprsht-init',
             statetext = 'Initializing ...',
             new_async=True
             )
+        return acomm
+    # proc_MatlListSAPSprsheet_00InitUMLasync_comm
 
+    # not needed in standalone version
+    # def proc_MatlListSAPSprsheet_00CopyUMLSpreadsheet(self, reqid):
+    #     ...
+
+    def proc_MatlListSAPSprsheet_01ReadSpreadsheet(self, reqid, fName):
+        # tmpMaterialListUpdate.objects.using(dbToUse).all().delete() - from client-server Django version
         # Repository.removeRecs_withcondition not implemented yet
         # So we do it manually here
         with get_app_session() as session:
@@ -316,8 +340,6 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             statetext = 'Reading Spreadsheet',
             )
 
-        fName = self.btnChooseFile.getFileChosen()
-        
         wb = load_workbook(filename=fName, read_only=True)
         ws = wb.active
         assert ws is not None, "Failed to load active worksheet from spreadsheet."
@@ -349,7 +371,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
                 )
 
             wb.close()
-            return      # need to do more than this, but for now, just exit
+            return acomm     # need to do more than this, but for now, just exit
         # endif bad header row
 
         numrows = ws.max_row
@@ -387,10 +409,13 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         # endfor
 
         wb.close()
+        return acomm     # need to do more than this, but for now, just exit
 
+    # proc_MatlListSAPSprsheet_01ReadSpreadsheet
+
+    def done_MatlListSAPSprsheet_01ReadSpreadsheet(self, reqid):
         # handle fatal err if occurred during reading
         # statecode = async_comm.objects.using(dbToUse).get(pk=reqid).statecode
-        # #DOITNOW!!! handle not t.success, t.result
         # if statecode != 'fatalerr':
         #     set_async_comm_state(
         #         dbToUse,
@@ -399,45 +424,28 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         #         statetext = f'Finished Reading Spreadsheet',
         #         )
         
-        # DO NEXT
-        #     proc_MatlListSAPSprsheet_02_identifyexistingMaterial(dbToUse, reqid)
-    
-    @Slot()
-    def closeForm(self):
-        # TODO: Implement close form logic
-        pass
+        self.proc_MatlListSAPSprsheet_02_identifyexistingMaterial(reqid)
+    # done_MatlListSAPSprsheet_01ReadSpreadsheet
 
-    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
-        return
-
-    def proc_MatlListSAPSprsheet_00InitUMLasync_comm(dbToUse, reqid, UpdateExistFldList):
+    def proc_MatlListSAPSprsheet_02_identifyexistingMaterial(self, reqid):
         ...
-    def proc_MatlListSAPSprsheet_00CopyUMLSpreadsheet(req, reqid):
+    def done_MatlListSAPSprsheet_02_identifyexistingMaterial(self, reqid):
         ...
-    def proc_MatlListSAPSprsheet_01ReadSpreadsheet(dbToUse, reqid, fName):
+    def proc_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
         ...
-    def done_MatlListSAPSprsheet_01ReadSpreadsheet(t):
+    def done_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
         ...
-    def proc_MatlListSAPSprsheet_02_identifyexistingMaterial(dbToUse, reqid):
+    def proc_MatlListSAPSprsheet_04_Remove(self, reqid):
         ...
-    def done_MatlListSAPSprsheet_02_identifyexistingMaterial(dbToUse, reqid):
+    def done_MatlListSAPSprsheet_04_Remove(self,reqid):
         ...
-    def proc_MatlListSAPSprsheet_03_UpdateExistingRecs(dbToUse, reqid):
+    def proc_MatlListSAPSprsheet_04_Add(self, reqid):
         ...
-    def done_MatlListSAPSprsheet_03_UpdateExistingRecs(dbToUse, reqid):
+    def done_MatlListSAPSprsheet_04_Add(self, reqid):
         ...
-    def proc_MatlListSAPSprsheet_04_Remove(dbToUse, reqid):
+    def proc_MatlListSAPSprsheet_99_FinalProc(self, reqid):
         ...
-    def done_MatlListSAPSprsheet_04_Remove(dbToUse,reqid):
-        ...
-    def proc_MatlListSAPSprsheet_04_Add(dbToUse, reqid):
-        ...
-    def done_MatlListSAPSprsheet_04_Add(dbToUse, reqid):
-        ...
-    def proc_MatlListSAPSprsheet_99_FinalProc(dbToUse, reqid):
-        ...
-    def proc_MatlListSAPSprsheet_99_Cleanup(dbToUse, reqid):
+    def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):
         ...
     
-
 # UpdateMatlListfromSAP
