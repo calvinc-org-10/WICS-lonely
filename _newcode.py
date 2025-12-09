@@ -1,4 +1,6 @@
+import re as regex
 from typing import (Any, )
+from datetime import datetime
 
 from PySide6.QtCore import (
     Qt, Slot, 
@@ -17,18 +19,59 @@ from PySide6.QtWidgets import (
     QFileDialog,
     )
 
+from sqlalchemy import (delete, )
+
+from openpyxl import load_workbook
+
 from qtawesome import icon
 
 from calvincTools.utils import (cSimpleRecordForm, )
 
 from app.database import (
-    get_app_sessionmaker, 
-    # Repository 
+    get_app_sessionmaker, get_app_session,
+    Repository 
     )
 from app.models import (
-    tmpMaterialListUpdate, 
+    tmpMaterialListUpdate, SAPPlants_org,
     )
 
+
+class async_comm():
+    reqid:str
+    timestamp:datetime
+    processname:str
+    statecode:str
+    statetext:str
+    result:str|None
+    extra1:str|None
+dict_async_comms:dict[str, async_comm] = {}
+
+def set_async_comm_state(
+        reqid, 
+        statecode,
+        statetext,
+        processname = None,
+        result = None,
+        extra1 = None,
+        new_async = False
+    ):
+    if new_async:
+        acomm = async_comm()
+        # create new acomm in dictionary of acomms
+    else:
+        # get existing acomm from dictionary of acomms
+        acomm = async_comm()
+    
+    acomm.reqid = reqid
+    acomm.statecode = statecode
+    acomm.statetext = statetext
+    acomm.result = result
+    acomm.extra1 = extra1
+    if processname is not None: acomm.processname = processname
+    acomm.timestamp = datetime.now()
+
+    return acomm
+# set_async_comm_state
 
 
 class cFileSelectWidget(QWidget):
@@ -59,6 +102,11 @@ class cFileSelectWidget(QWidget):
         
     # __init__
 
+    def getFileChosen(self) -> str:
+        """Returns the currently chosen file path."""
+        return self._lblFileChosen.text()
+    # getFileChosen
+    
     # most method calls are actually for the push button inside
     def __getattr__(self, name: str) -> Any:
         """Delegate attribute access to the contained widget."""
@@ -168,10 +216,10 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         chooseFileWidget = QWidget()
         chooseFileLayout = QGridLayout(chooseFileWidget)
         lblChooseFileLabel = QLabel("Choose or Drop SAP Material List Spreadsheet File:")
-        btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
-        btnChooseFile.clicked.connect(self.chooseFile)
+        self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
+        self.btnChooseFile.clicked.connect(self.chooseFile)
         chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
-        chooseFileLayout.addWidget(btnChooseFile, 1, 0)
+        chooseFileLayout.addWidget(self.btnChooseFile, 1, 0)
         
         PhaseWidget = QWidget()
         PhaseLayout = QHBoxLayout(PhaseWidget)
@@ -245,49 +293,121 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     
     @Slot()
     def uploadFile(self):
-        # TODO: Implement file upload logic
-        pass
+        reqid = 'unique-request-id'  # Generate or obtain a unique request ID
+
+        acomm = set_async_comm_state(
+            reqid,
+            statecode = 'rdng-sprsht-init',
+            statetext = 'Initializing ...',
+            new_async=True
+            )
+
+        # Repository.removeRecs_withcondition not implemented yet
+        # So we do it manually here
+        with get_app_session() as session:
+            stmt = delete(tmpMaterialListUpdate)
+            session.execute(stmt)
+            session.commit()
+        # endwith
+
+        acomm = set_async_comm_state(
+            reqid,
+            statecode = 'rdng-sprsht',
+            statetext = 'Reading Spreadsheet',
+            )
+
+        fName = self.btnChooseFile.getFileChosen()
+        
+        wb = load_workbook(filename=fName, read_only=True)
+        ws = wb.active
+        assert ws is not None, "Failed to load active worksheet from spreadsheet."
+        SAPcolmnNames = ws[1]
+        SAPcol = {'Plant':None,'Material': None}
+        SAP_SSName_TableName_map = {
+                'Material': 'Material',
+                'Material description': 'Description',
+                'Plant': 'Plant', 'Plnt': 'Plant',
+                'Material type': 'SAPMaterialType',  'MTyp': 'SAPMaterialType',
+                'Material Group': 'SAPMaterialGroup', 'Matl Group': 'SAPMaterialGroup',
+                'Manufact.': 'SAPManuf', 
+                'MPN': 'SAPMPN', 
+                'ABC': 'SAPABC', 
+                'Price': 'Price', 'Standard price': 'Price',
+                'Price unit': 'PriceUnit', 'per': 'PriceUnit',
+                'Currency':'Currency',
+                }
+        dict_SAPPlants = {rec.SAPPlant: rec.org_id  for rec in Repository(get_app_sessionmaker(), SAPPlants_org).get_all()}  # preload SAPPlants_org cache
+        for col in SAPcolmnNames:
+            if col.value in SAP_SSName_TableName_map:
+                SAPcol[SAP_SSName_TableName_map[col.value]] = col.column - 1 # type: ignore
+        if (SAPcol['Material'] == None or SAPcol['Plant'] == None):
+            set_async_comm_state(
+                reqid,
+                statecode = 'fatalerr',
+                statetext = 'SAP Spreadsheet has bad header row. Plant and/or Material is missing.  See Calvin to fix this.',
+                result = 'FAIL - bad spreadsheet',
+                )
+
+            wb.close()
+            return      # need to do more than this, but for now, just exit
+        # endif bad header row
+
+        numrows = ws.max_row
+        nRows = 0
+        intrval_announce = min(100, int(max(1, numrows // 10)))
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            nRows += 1
+            if nRows % intrval_announce == 0:
+                set_async_comm_state(
+                    reqid,
+                    statecode = 'rdng-sprsht',
+                    statetext = f'Reading Spreadsheet ... record {nRows} of {numrows}<br><progress max="{numrows}" value="{nRows}"></progress>',
+                    )
+
+            if row[SAPcol['Material']]==None: MatNum = ''
+            else: MatNum = row[SAPcol['Material']]
+            validTmpRec = False
+            ## create a blank tmpMaterialListUpdate record,
+            newrec = tmpMaterialListUpdate()
+            if regex.match(".*[\n\t\xA0].*",str(MatNum)):
+                validTmpRec = True
+                ## refuse to work with special chars embedded in the MatNum
+                newrec.recStatus = 'err-MatlNum'
+                newrec.errmsg = f'error: {MatNum!a} is an unusable part number. It contains invalid characters and cannot be added to WICS'
+            elif len(str(MatNum)):
+                validTmpRec = True
+                newrec.org_id = dict_SAPPlants.get(str(row[SAPcol['Plant']]), 0)
+            # endif invalid Material
+            if validTmpRec:
+                ## populate by looping through SAPcol,
+                ## then save
+                for dbColName, ssColNum in SAPcol.items():
+                    setattr(newrec,dbColName,row[ssColNum]) # type: ignore
+                Repository(get_app_sessionmaker(), tmpMaterialListUpdate).add(newrec)
+        # endfor
+
+        wb.close()
+
+        # handle fatal err if occurred during reading
+        # statecode = async_comm.objects.using(dbToUse).get(pk=reqid).statecode
+        # #DOITNOW!!! handle not t.success, t.result
+        # if statecode != 'fatalerr':
+        #     set_async_comm_state(
+        #         dbToUse,
+        #         reqid,
+        #         statecode = 'done-rdng-sprsht',
+        #         statetext = f'Finished Reading Spreadsheet',
+        #         )
+        
+        # DO NEXT
+        #     proc_MatlListSAPSprsheet_02_identifyexistingMaterial(dbToUse, reqid)
     
     @Slot()
     def closeForm(self):
         # TODO: Implement close form logic
         pass
 
-    def changeInternalVarField(self, wdgt, _fieldName: str, _newValue: Any) -> None:
+    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
         return
 
-class async_comm(models.Model):
-    reqid = models.CharField(max_length=255, primary_key=True)
-    timestamp = models.CharField(max_length=30, null=True)
-    processname = models.CharField(max_length=256, null=True, blank=True)
-    statecode = models.CharField(max_length=64, null=True, blank=True)
-    statetext = models.CharField(max_length=512, null=True, blank=True)
-    result = models.CharField(max_length=2048, null=True, blank=True)
-    extra1 = models.CharField(max_length=2048, null=True, blank=True)
-
-def set_async_comm_state(
-        dbToUse,
-        reqid, 
-        statecode,
-        statetext,
-        processname = None,
-        result = None,
-        extra1 = None,
-        new_async = False
-    ):
-    if new_async:
-        acomm = async_comm.objects.using(dbToUse).get_or_create(pk=reqid)
-    else:
-        acomm = async_comm.objects.using(dbToUse).get(pk=reqid)
-    # why does acomm sometimes come back as a tuple???
-    if isinstance(acomm, tuple): acomm = acomm[0]
-    
-    acomm.statecode = statecode
-    acomm.statetext = statetext
-    acomm.result = result
-    acomm.extra1 = extra1
-    if processname is not None: acomm.processname = processname
-    acomm.timestamp = datetime.now().__str__()
-    acomm.save(using=dbToUse)
-
-    return acomm
+# UpdateMatlListfromSAP
