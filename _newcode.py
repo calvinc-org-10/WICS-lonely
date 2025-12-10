@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     )
 
-from sqlalchemy import (delete, )
+from sqlalchemy import (delete, update, select, insert, func, literal_column)
 
 from openpyxl import load_workbook
 
@@ -32,7 +32,8 @@ from app.database import (
     Repository 
     )
 from app.models import (
-    tmpMaterialListUpdate, SAPPlants_org,
+    tmpMaterialListUpdate, SAPPlants_org, MaterialList,
+    ActualCounts, CountSchedule, SAP_SOHRecs,
     )
 
 
@@ -328,10 +329,11 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         # tmpMaterialListUpdate.objects.using(dbToUse).all().delete() - from client-server Django version
         # Repository.removeRecs_withcondition not implemented yet
         # So we do it manually here
-        with get_app_session() as session:
-            stmt = delete(tmpMaterialListUpdate)
-            session.execute(stmt)
-            session.commit()
+        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(lambda rec: True)
+        # with get_app_session() as session:
+        #     stmt = delete(tmpMaterialListUpdate)
+        #     session.execute(stmt)
+        #     session.commit()
         # endwith
 
         acomm = set_async_comm_state(
@@ -428,21 +430,147 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     # done_MatlListSAPSprsheet_01ReadSpreadsheet
 
     def proc_MatlListSAPSprsheet_02_identifyexistingMaterial(self, reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'get-matl-link',
+            statetext = f'Finding SAP MM60 Materials already in WICS Material List',
+            )
+        # UpdMaterialLinkSQL = 'UPDATE WICS_tmpmateriallistupdate, (select id, org_id, Material from WICS_materiallist) as MasterMaterials'
+        # UpdMaterialLinkSQL += ' set WICS_tmpmateriallistupdate.MaterialLink_id = MasterMaterials.id, '
+        # UpdMaterialLinkSQL += "     WICS_tmpmateriallistupdate.recStatus = 'FOUND' "
+        # UpdMaterialLinkSQL += ' where WICS_tmpmateriallistupdate.org_id = MasterMaterials.org_id '
+        # UpdMaterialLinkSQL += '   and WICS_tmpmateriallistupdate.Material = MasterMaterials.Material '
+        # with connections[dbToUse].cursor() as cursor:
+        #     cursor.execute(UpdMaterialLinkSQL)
+        # this is a little too wild for the Repository pattern, so we do it manually here
+        with get_app_session() as session:
+            stmt = (
+                update(tmpMaterialListUpdate)
+                .values(
+                    MaterialLink_id=select(MaterialList.id)
+                        .where(
+                            tmpMaterialListUpdate.org_id == MaterialList.org_id,
+                            tmpMaterialListUpdate.Material == MaterialList.Material
+                        )
+                        .correlate(tmpMaterialListUpdate)
+                        .scalar_subquery(),
+                    recStatus='FOUND'
+                )
+                .where(
+                    select(MaterialList.id)
+                        .where(
+                            tmpMaterialListUpdate.org_id == MaterialList.org_id,
+                            tmpMaterialListUpdate.Material == MaterialList.Material
+                        )
+                        .correlate(tmpMaterialListUpdate)
+                        .exists()
+                )
+            )
+
+            session.execute(stmt)
+            session.commit()
+        # endwith
+
+        set_async_comm_state(
+            reqid,
+            statecode = 'id-del-matl',
+            statetext = f'Identifying WICS Materials no longer in SAP MM60 Materials',
+            )
+        # MustKeepMatlsSelCond = ''
+        # MustKeepMatlsSelCond += ' AND ' if MustKeepMatlsSelCond else ''
+        # MustKeepMatlsSelCond += 'id NOT IN (SELECT DISTINCT tmucopy.MaterialLink_id AS Material_id FROM WICS_tmpmateriallistupdate tmucopy WHERE tmucopy.MaterialLink_id IS NOT NULL)'
+        # MustKeepMatlsSelCond += ' AND ' if MustKeepMatlsSelCond else ''
+        # MustKeepMatlsSelCond += 'id NOT IN (SELECT DISTINCT Material_id FROM WICS_actualcounts)'
+        # MustKeepMatlsSelCond += ' AND ' if MustKeepMatlsSelCond else ''
+        # MustKeepMatlsSelCond += 'id NOT IN (SELECT DISTINCT Material_id FROM WICS_countschedule)'
+        # MustKeepMatlsSelCond += ' AND ' if MustKeepMatlsSelCond else ''
+        # MustKeepMatlsSelCond += 'id NOT IN (SELECT DISTINCT Material_id FROM WICS_sap_sohrecs)'
+
+        # DeleteMatlsSelectSQL = "INSERT INTO WICS_tmpmateriallistupdate (recStatus, delMaterialLink, MaterialLink_id, org_id, Material, Description, Plant "
+        # DeleteMatlsSelectSQL += ", SAPMaterialType, SAPMaterialGroup, Currency  ) "    # these can go once I set null=True on these fields
+        # DeleteMatlsSelectSQL += " SELECT  concat('DEL ',FORMAT(id,0)), id, NULL, org_id, Material, Description, Plant "
+        # DeleteMatlsSelectSQL += ", SAPMaterialType, SAPMaterialGroup, Currency  "    # these can go once I set null=True on these fields
+        # DeleteMatlsSelectSQL += " FROM WICS_materiallist"
+        # DeleteMatlsSelectSQL += f" WHERE ({MustKeepMatlsSelCond})"
+        with get_app_session() as session:
+            # Build the NOT IN subqueries
+            not_in_tmp = select(tmpMaterialListUpdate.MaterialLink).where(
+                tmpMaterialListUpdate.MaterialLink.is_not(None)
+            ).distinct()
+
+            not_in_actual = select(ActualCounts.Material_id).distinct()
+            not_in_schedule = select(CountSchedule.Material_id).distinct()
+            not_in_sap = select(SAP_SOHRecs.Material_id).distinct()
+
+            # Build the SELECT statement for materials to delete
+            select_stmt = select(
+                func.concat('DEL ', func.format(MaterialList.id, 0)).label('recStatus'),
+                MaterialList.id.label('delMaterialLink'),
+                literal_column('NULL').label('MaterialLink'),
+                MaterialList.org_id,
+                MaterialList.Material,
+                MaterialList.Description,
+                MaterialList.Plant,
+                MaterialList.SAPMaterialType,
+                MaterialList.SAPMaterialGroup,
+                MaterialList.Currency
+            ).where(
+                MaterialList.id.not_in(not_in_tmp),
+                MaterialList.id.not_in(not_in_actual),
+                MaterialList.id.not_in(not_in_schedule),
+                MaterialList.id.not_in(not_in_sap)
+            )
+
+            # INSERT ... SELECT
+            stmt = insert(tmpMaterialListUpdate).from_select(
+                ['recStatus', 'delMaterialLink', 'MaterialLink', 'org_id', 'Material',
+                'Description', 'Plant', 'SAPMaterialType', 'SAPMaterialGroup', 'Currency'],
+                select_stmt
+            )
+
+            session.execute(stmt)
+            session.commit()
+
+        set_async_comm_state(
+            reqid,
+            statecode = 'id-add-matl',
+            statetext = f'Identifying SAP MM60 Materials new to WICS',
+            )
+        # MarkAddMatlsSelectSQL = "UPDATE WICS_tmpmateriallistupdate"
+        # MarkAddMatlsSelectSQL += " SET recStatus = 'ADD'"
+        # MarkAddMatlsSelectSQL += " WHERE (MaterialLink_id IS NULL) AND (recStatus is NULL)"
+        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).updatewhere(
+            lambda rec: rec.MaterialLink_id is None and (rec.recStatus is None),
+            {'recStatus': 'ADD'}
+        )
+
+        self.done_MatlListSAPSprsheet_02_identifyexistingMaterial(reqid)
+    # proc_MatlListSAPSprsheet_02_identifyexistingMaterial
     def done_MatlListSAPSprsheet_02_identifyexistingMaterial(self, reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'get-matl-link-done',
+            statetext = f'Finished linking SAP MM60 list to existing WICS Materials',
+            )
+        
+        self.proc_MatlListSAPSprsheet_03_UpdateExistingRecs(reqid)
+    # done_MatlListSAPSprsheet_02_identifyexistingMaterial
+
     def proc_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
         ...
     def done_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
         ...
+
     def proc_MatlListSAPSprsheet_04_Remove(self, reqid):
         ...
     def done_MatlListSAPSprsheet_04_Remove(self,reqid):
         ...
+
     def proc_MatlListSAPSprsheet_04_Add(self, reqid):
         ...
     def done_MatlListSAPSprsheet_04_Add(self, reqid):
         ...
+
     def proc_MatlListSAPSprsheet_99_FinalProc(self, reqid):
         ...
     def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):
