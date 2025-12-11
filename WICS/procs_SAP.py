@@ -1,3 +1,5 @@
+#type: ignore
+#pylint: skip-file
 import os, uuid, re as regex
 import ast
 import subprocess, signal

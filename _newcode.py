@@ -19,7 +19,7 @@ from PySide6.QtWidgets import (
     QFileDialog,
     )
 
-from sqlalchemy import (delete, update, select, insert, func, literal_column)
+from sqlalchemy import (delete, update, select, insert, func, literal_column, text, )
 
 from openpyxl import load_workbook
 
@@ -229,17 +229,17 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         PhaseLayout.addWidget(lblShowPhaseTitle)
         PhaseLayout.addWidget(lblShowPhase, alignment=Qt.AlignmentFlag.AlignLeft)
         
-        dict_chkUpdtOption = {}
-        dict_chkUpdtOption['Desc'] = QCheckBox("Description")
-        dict_chkUpdtOption['SAPMatlType'] = QCheckBox("SAP Material Type")
-        dict_chkUpdtOption['SAPMatlGroup'] = QCheckBox("SAP Material Group")
-        dict_chkUpdtOption['SAPMfr'] = QCheckBox("SAP Manufacturer")
-        dict_chkUpdtOption['SAPMPN'] = QCheckBox("SAP Manufacturer Part Number")
-        dict_chkUpdtOption['SAPABC'] = QCheckBox("SAP ABC Designation")
-        dict_chkUpdtOption['Price'] = QCheckBox("Price, Price Unit and Currency")
+        self.dict_chkUpdtOption = {}
+        self.dict_chkUpdtOption['Description'] = QCheckBox("Description")
+        self.dict_chkUpdtOption['SAPMatlType'] = QCheckBox("SAP Material Type")
+        self.dict_chkUpdtOption['SAPMatlGroup'] = QCheckBox("SAP Material Group")
+        self.dict_chkUpdtOption['SAPManuf'] = QCheckBox("SAP Manufacturer")
+        self.dict_chkUpdtOption['SAPMPN'] = QCheckBox("SAP Manufacturer Part Number")
+        self.dict_chkUpdtOption['SAPABC'] = QCheckBox("SAP ABC Designation")
+        self.dict_chkUpdtOption['SAPPrice'] = QCheckBox("Price, Price Unit and Currency")
         grpbxUpdtOptions = QGroupBox('Update Existing Material Records for these Fields:')
         layoutUpdtOptions = QVBoxLayout(grpbxUpdtOptions)
-        for chk in dict_chkUpdtOption.values():
+        for chk in self.dict_chkUpdtOption.values():
             layoutUpdtOptions.addWidget(chk)
         
         chkDoNotDelete = QCheckBox("Do Not Delete Records Not in Spreadsheet")
@@ -557,9 +557,66 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     # done_MatlListSAPSprsheet_02_identifyexistingMaterial
 
     def proc_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
-        ...
+        def setstate_MatlListSAPSprsheet_03_UpdateExistingRecs(fldName):
+            acomm = set_async_comm_state(
+                reqid,
+                statecode = 'upd-existing-recs',
+                statetext = f'Updating _{fldName}_ Field in Existing Records',
+                )
+
+        setstate_MatlListSAPSprsheet_03_UpdateExistingRecs('')
+
+        # (Form Name, db fld Name, zero/blank value)
+        # NOTE: SAPPrice updates three fields: Price, PriceUnit, Currency - that's why I don't use a simple dict here
+        FormTodbFld_map = [
+            ('Description','Description','""'),
+            ('SAPMatlType','SAPMaterialType','""'),
+            ('SAPMatlGroup','SAPMaterialGroup','""'),
+            ('SAPManuf','SAPManuf','""'),
+            ('SAPMPN','SAPMPN','""'),
+            ('SAPABC','SAPABC','""'),
+            ('SAPPrice','Price',0),
+            ('SAPPrice','PriceUnit',0),
+            ('SAPPrice','Currency','""'),
+        ]
+
+        UpdateExistFldSet = {
+            key for key, chkbox in self.dict_chkUpdtOption.items() 
+                if chkbox.isChecked()
+        }
+
+        if UpdateExistFldSet:
+            MatlList_tbl = MaterialList.__tablename__
+            tmpMatlListUpd_tbl = tmpMaterialListUpdate.__tablename__
+            for formName, dbName, zeroVal in FormTodbFld_map:
+                if formName in UpdateExistFldSet:
+                    setstate_MatlListSAPSprsheet_03_UpdateExistingRecs(dbName)
+                    # UPDATE this field
+                    # for SQLite, the SQLAlchemy way is complex, so we do it manually here
+                    UpdSQLSetStmt = f"{MatlList_tbl}.{dbName}={tmpMatlListUpd_tbl}.{dbName}"
+                    UpdSQLWhereStmt = f"(IFNULL({tmpMatlListUpd_tbl}.{dbName},{zeroVal}) != {zeroVal} AND IFNULL({MatlList_tbl}.{dbName},{zeroVal})!=IFNULL({tmpMatlListUpd_tbl}.{dbName},{zeroVal}))"
+
+                    UpdSQLStmt = f"UPDATE {MatlList_tbl}"
+                    UpdSQLStmt += f" SET {UpdSQLSetStmt}"
+                    UpdSQLStmt += f" FROM {tmpMatlListUpd_tbl}"
+                    UpdSQLStmt += f" WHERE ({tmpMatlListUpd_tbl}.MaterialLink_id={MatlList_tbl}.id) AND {UpdSQLWhereStmt}"
+                    UpdSQLStmt += ";"
+                    
+                    with get_app_session() as session:
+                        session.execute(text(UpdSQLStmt))
+                        session.commit()
+                #endif formName in UpdateExistFldList
+            #endfor
+        # endif UpdateExistFldList not empty
+        self.done_MatlListSAPSprsheet_03_UpdateExistingRecs(reqid)
+    # proc_MatlListSAPSprsheet_03_UpdateExistingRecs
     def done_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'upd-existing-recs-done',
+            statetext = f'Finished Updating Existing Records to MM60 values',
+            )
+    # done_MatlListSAPSprsheet_03_UpdateExistingRecs
 
     def proc_MatlListSAPSprsheet_04_Remove(self, reqid):
         ...
