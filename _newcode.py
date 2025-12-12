@@ -515,7 +515,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
 
             # Build the SELECT statement for materials to delete
             select_stmt = select(
-                func.concat('DEL ', func.format(MaterialList.id, 0)).label('recStatus'),
+                ('DEL ' + func.format(MaterialList.id, 0)).label('recStatus'),
                 MaterialList.id.label('delMaterialLink'),
                 literal_column('NULL').label('MaterialLink'),
                 MaterialList.org_id,
@@ -569,7 +569,8 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
 
     def proc_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
         def setstate_MatlListSAPSprsheet_03_UpdateExistingRecs(fldName):
-            acomm = set_async_comm_state(
+            # acomm = 
+            set_async_comm_state(
                 reqid,
                 statecode = 'upd-existing-recs',
                 statetext = f'Updating _{fldName}_ Field in Existing Records',
@@ -717,7 +718,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             statetext = 'Finished Processing Spreadsheet',
             )
     # proc_MatlListSAPSprsheet_99_FinalProc
-    def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):
+    def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):   # pylint: disable=unused-argument
         # kill async_comm[reqid] object
 
         Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(lambda rec: True)
