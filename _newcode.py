@@ -15,7 +15,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QBoxLayout,
     QWidget, 
-    QPushButton, QLabel, QCheckBox,
+    QPushButton, QLabel, QCheckBox, QProgressBar, 
     QGroupBox, 
     QGridLayout, QHBoxLayout, QVBoxLayout, QTabWidget,
     QFileDialog,
@@ -49,7 +49,7 @@ class async_comm():
     extra1:str|None
 dict_async_comms:dict[str, async_comm] = {}
 
-def set_async_comm_state(
+def notgonnauseset_async_comm_state(
         reqid, 
         statecode,
         statetext,
@@ -251,7 +251,8 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
         mainFormPage.addWidget(self.chkDoNotDelete, 2, 1)
         
-        self.wdgtUpdtStatusArea = layoutFormFixedTop
+        self.wdgtUpdtStatusText = QLabel("")
+        layoutFormFixedTop
 
     # _placeFields
     
