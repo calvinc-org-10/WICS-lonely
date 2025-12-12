@@ -224,12 +224,12 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
         chooseFileLayout.addWidget(self.btnChooseFile, 1, 0)
         
-        PhaseWidget = QWidget()
-        PhaseLayout = QHBoxLayout(PhaseWidget)
-        lblShowPhaseTitle = QLabel("Phase:")
-        lblShowPhase = QLabel("No file chosen")
-        PhaseLayout.addWidget(lblShowPhaseTitle)
-        PhaseLayout.addWidget(lblShowPhase, alignment=Qt.AlignmentFlag.AlignLeft)
+        # PhaseWidget = QWidget()
+        # PhaseLayout = QHBoxLayout(PhaseWidget)
+        # lblShowPhaseTitle = QLabel("Phase:")
+        # lblShowPhase = QLabel("No file chosen")
+        # PhaseLayout.addWidget(lblShowPhaseTitle)
+        # PhaseLayout.addWidget(lblShowPhase, alignment=Qt.AlignmentFlag.AlignLeft)
         
         self.dict_chkUpdtOption = {}
         self.dict_chkUpdtOption['Description'] = QCheckBox("Description")
@@ -247,12 +247,15 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         self.chkDoNotDelete = QCheckBox("Do Not Delete Records Not in Spreadsheet")
         
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
-        mainFormPage.addWidget(PhaseWidget, 2, 0)
+        # mainFormPage.addWidget(PhaseWidget, 2, 0)
         mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
         mainFormPage.addWidget(self.chkDoNotDelete, 2, 1)
         
         self.wdgtUpdtStatusText = QLabel("")
-        layoutFormFixedTop
+        self.wdgtUpdtStatusProgBar = QProgressBar()
+        assert layoutFormFixedTop is not None, "layoutFormFixedTop is required"
+        layoutFormFixedTop.addWidget(self.wdgtUpdtStatusText, 0, 0)
+        layoutFormFixedTop.addWidget(self.wdgtUpdtStatusProgBar, 1, 0)
 
     # _placeFields
     
@@ -271,21 +274,22 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     #     return super()._handleActionButton(action)
     # _add/handleActionButtons
     
-    def showUpdateStatus(self, statusText: str):
-        if self.wdgtUpdtStatusArea is not None:
-            # Clear previous status
-            for i in reversed(range(self.wdgtUpdtStatusArea.count())):
-                widgetToRemove = self.wdgtUpdtStatusArea.itemAt(i).widget() # type: ignore
-                if widgetToRemove is not None:
-                    widgetToRemove.setParent(None)
-            # Add new status label
-            lblStatus = QLabel(statusText)
-            self.wdgtUpdtStatusArea.addWidget(lblStatus, 0, 0)
-        #endif wdgtUpdtStatusArea
+    def showUpdateStatus(self, statusText: str, progressValue: int = 0, progressMax: int = -1) -> None:
+
+        self.wdgtUpdtStatusText.setText(statusText)
+
+        if progressMax < 0:
+            self.wdgtUpdtStatusProgBar.setVisible(False)
+        else:
+            self.wdgtUpdtStatusProgBar.setVisible(True)
+            self.wdgtUpdtStatusProgBar.setMaximum(progressMax)
+            self.wdgtUpdtStatusProgBar.setValue(progressValue)
+        # endif progressMax
     # showUpdateStatus
 
     def initialdisplay(self):
         self.showNewRecordFlag()
+        self.showUpdateStatus("")
     
     def isNewRecord(self) -> bool:
         return False
