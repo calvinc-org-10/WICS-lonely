@@ -1,3 +1,5 @@
+# pylint: disable=f-string-without-interpolation
+
 import re as regex
 from typing import (Any, )
 from datetime import datetime
