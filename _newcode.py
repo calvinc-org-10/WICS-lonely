@@ -242,12 +242,12 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         for chk in self.dict_chkUpdtOption.values():
             layoutUpdtOptions.addWidget(chk)
         
-        chkDoNotDelete = QCheckBox("Do Not Delete Records Not in Spreadsheet")
+        self.chkDoNotDelete = QCheckBox("Do Not Delete Records Not in Spreadsheet")
         
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
         mainFormPage.addWidget(PhaseWidget, 2, 0)
         mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
-        mainFormPage.addWidget(chkDoNotDelete, 2, 1)
+        mainFormPage.addWidget(self.chkDoNotDelete, 2, 1)
         
         self.wdgtUpdtStatusArea = layoutFormFixedTop
 
@@ -296,12 +296,21 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def uploadFile(self):
         reqid = 'unique-request-id'  # Generate or obtain a unique request ID
 
+        # disable most of the form while processing
+        
         self.proc_MatlListSAPSprsheet_00InitUMLasync_comm(reqid)
 
         # UMLSSName = self.proc_MatlListSAPSprsheet_00CopyUMLSpreadsheet(reqid)     # needed in a client-server environment, not for standalone
         UMLSSName = self.btnChooseFile.getFileChosen()
         self.proc_MatlListSAPSprsheet_01ReadSpreadsheet(reqid, UMLSSName)
-        self.done_MatlListSAPSprsheet_01ReadSpreadsheet(reqid)
+        self.done_MatlListSAPSprsheet_01ReadSpreadsheet(reqid)      # this trigger most of the rest of the processing chain
+        
+        # present results to user
+        
+        self.proc_MatlListSAPSprsheet_99_Cleanup(reqid)
+        self.closeForm()
+        
+    # uploadFile
 
     @Slot()
     def closeForm(self):
@@ -616,21 +625,100 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             statecode = 'upd-existing-recs-done',
             statetext = f'Finished Updating Existing Records to MM60 values',
             )
+        
+        self.proc_MatlListSAPSprsheet_04_Remove(reqid)
     # done_MatlListSAPSprsheet_03_UpdateExistingRecs
 
     def proc_MatlListSAPSprsheet_04_Remove(self, reqid):
-        ...
+        if self.chkDoNotDelete.isChecked():
+            self.done_MatlListSAPSprsheet_04_Remove(reqid)
+            return
+
+        set_async_comm_state(
+            reqid,
+            statecode = 'del-matl',
+            statetext = f'Removing WICS Materials no longer in SAP MM60 Materials',
+            )
+        
+        # do the Removals
+        with get_app_session() as session:
+            # SQLAlchemy delete with subquery
+            subq = select(tmpMaterialListUpdate.delMaterialLink).where(tmpMaterialListUpdate.recStatus.like('DEL%'))
+            stmt = delete(MaterialList).where(MaterialList.id.in_(subq))
+            session.execute(stmt)
+            session.commit()
+            
+        self.done_MatlListSAPSprsheet_04_Remove(reqid)
+    # proc_MatlListSAPSprsheet_04_Remove
     def done_MatlListSAPSprsheet_04_Remove(self,reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'del-matl-done',
+            statetext = f'Finished Removing WICS Materials no longer in SAP MM60 Materials',
+            )
+        self.proc_MatlListSAPSprsheet_04_Add(reqid)
+    # done_MatlListSAPSprsheet_04_Remove
 
     def proc_MatlListSAPSprsheet_04_Add(self, reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'add-matl',
+            statetext = f'Adding WICS Materials from SAP MM60 Materials',
+            )
+        
+        # do the Additions
+        with get_app_session() as session:
+             # Select compatible columns from tmp where recStatus is 'ADD'
+            select_stmt = select(
+                tmpMaterialListUpdate.org_id,
+                tmpMaterialListUpdate.Material,
+                tmpMaterialListUpdate.Description,
+                tmpMaterialListUpdate.Plant,
+                tmpMaterialListUpdate.SAPMaterialType,
+                tmpMaterialListUpdate.SAPMaterialGroup,
+                tmpMaterialListUpdate.SAPManuf,
+                tmpMaterialListUpdate.SAPMPN,
+                tmpMaterialListUpdate.SAPABC,
+                tmpMaterialListUpdate.Price,
+                tmpMaterialListUpdate.PriceUnit,
+                tmpMaterialListUpdate.Currency
+            ).where(
+                tmpMaterialListUpdate.recStatus.like('ADD')
+            )
+            
+            # Insert into MaterialList
+            stmt = insert(MaterialList).from_select(
+                ['org_id', 'Material', 'Description', 'Plant', 
+                 'SAPMaterialType', 'SAPMaterialGroup', 'SAPManuf', 
+                 'SAPMPN', 'SAPABC', 'Price', 'PriceUnit', 'Currency'],
+                select_stmt
+            )
+            
+            session.execute(stmt)
+            session.commit()
+            
+        self.done_MatlListSAPSprsheet_04_Add(reqid)
+    # proc_MatlListSAPSprsheet_04_Add
     def done_MatlListSAPSprsheet_04_Add(self, reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'add-matl-done',
+            statetext = f'Finished Adding WICS Materials from SAP MM60 Materials',
+            )
+        self.proc_MatlListSAPSprsheet_99_FinalProc(reqid)
+    # done_MatlListSAPSprsheet_04_Add
 
     def proc_MatlListSAPSprsheet_99_FinalProc(self, reqid):
-        ...
+        set_async_comm_state(
+            reqid,
+            statecode = 'done',
+            statetext = 'Finished Processing Spreadsheet',
+            )
+    # proc_MatlListSAPSprsheet_99_FinalProc
     def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):
-        ...
+        # kill async_comm[reqid] object
+
+        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(lambda rec: True)
+    # proc_MatlListSAPSprsheet_99_Cleanup
     
 # UpdateMatlListfromSAP
