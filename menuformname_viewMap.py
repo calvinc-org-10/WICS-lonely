@@ -32,7 +32,7 @@ FormNameToURL_Map['frmParts-By-Type-with-LastCounts'.lower()] = ('MatlByPartType
 FormNameToURL_Map['rptMaterialByLastCount'.lower()] = ('MatlByLastCountDate', None)
 FormNameToURL_Map['rptMaterialByDESCValue'.lower()] = ('MatlByDESCValue', None)
 FormNameToURL_Map['frmRandCountScheduler'.lower()] = (None, None)
-FormNameToURL_Map['matllistupdt'.lower()] = ('UpdateMatlListfromSAP', None)
+
 FormNameToURL_Map['frmCountScheduleEntry'.lower()] = ('CountScheduleForm', forms.CountScheduleRecordForm)
 FormNameToURL_Map['frmRequestCountScheduleEntry'.lower()] = ('RequestCountScheduleForm', None)
 FormNameToURL_Map['frmRequestedCountListEdit'.lower()] = ('RequestCountListEdit', None)
@@ -45,5 +45,6 @@ FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
 FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.WhsePartTypes)
 
 
-import _newcode as newcode
-FormNameToURL_Map['test01'.lower()] = ('', newcode.UpdateMatlListfromSAP)
+import _newcode
+FormNameToURL_Map['test01'.lower()] = ('', _newcode.UpdateMatlListfromSAP)
+FormNameToURL_Map['matllistupdt'.lower()] = ('', _newcode.UpdateMatlListfromSAP)

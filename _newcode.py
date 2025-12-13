@@ -39,44 +39,6 @@ from app.models import (
     )
 
 
-class async_comm():
-    reqid:str
-    timestamp:datetime
-    processname:str
-    statecode:str
-    statetext:str
-    result:str|None
-    extra1:str|None
-dict_async_comms:dict[str, async_comm] = {}
-
-def notgonnauseset_async_comm_state(
-        reqid, 
-        statecode,
-        statetext,
-        processname = None,
-        result = None,
-        extra1 = None,
-        new_async = False
-    ):
-    if new_async:
-        acomm = async_comm()
-        # create new acomm in dictionary of acomms
-    else:
-        # get existing acomm from dictionary of acomms
-        acomm = async_comm()
-    
-    acomm.reqid = reqid
-    acomm.statecode = statecode
-    acomm.statetext = statetext
-    acomm.result = result
-    acomm.extra1 = extra1
-    if processname is not None: acomm.processname = processname
-    acomm.timestamp = datetime.now()
-
-    return acomm
-# set_async_comm_state
-
-
 class cFileSelectWidget(QWidget):
     """A QPushButton that accepts file drops and opens a QFileDialog
     with the dropped file pre-selected.
@@ -328,13 +290,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         return
 
     def proc_MatlListSAPSprsheet_00InitUMLasync_comm(self, reqid):
-        acomm = set_async_comm_state(
-            reqid,
-            statecode = 'rdng-sprsht-init',
-            statetext = 'Initializing ...',
-            new_async=True
-            )
-        return acomm
+        self.showUpdateStatus('Initializing ...')
     # proc_MatlListSAPSprsheet_00InitUMLasync_comm
 
     # not needed in standalone version
@@ -352,11 +308,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         #     session.commit()
         # endwith
 
-        acomm = set_async_comm_state(
-            reqid,
-            statecode = 'rdng-sprsht',
-            statetext = 'Reading Spreadsheet',
-            )
+        self.showUpdateStatus('Reading Spreadsheet')
 
         wb = load_workbook(filename=fName, read_only=True)
         ws = wb.active
@@ -381,15 +333,10 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             if col.value in SAP_SSName_TableName_map:
                 SAPcol[SAP_SSName_TableName_map[col.value]] = col.column - 1 # type: ignore
         if (SAPcol['Material'] == None or SAPcol['Plant'] == None):
-            set_async_comm_state(
-                reqid,
-                statecode = 'fatalerr',
-                statetext = 'SAP Spreadsheet has bad header row. Plant and/or Material is missing.  See Calvin to fix this.',
-                result = 'FAIL - bad spreadsheet',
-                )
+            self.showUpdateStatus('SAP Spreadsheet has bad header row. Plant and/or Material is missing.  See Calvin to fix this.', 0, -1)
 
             wb.close()
-            return acomm     # need to do more than this, but for now, just exit
+            return      # need to do more than this, but for now, just exit
         # endif bad header row
 
         numrows = ws.max_row
@@ -398,11 +345,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         for row in ws.iter_rows(min_row=2, values_only=True):
             nRows += 1
             if nRows % intrval_announce == 0:
-                set_async_comm_state(
-                    reqid,
-                    statecode = 'rdng-sprsht',
-                    statetext = f'Reading Spreadsheet ... record {nRows} of {numrows}<br><progress max="{numrows}" value="{nRows}"></progress>',
-                    )
+                self.showUpdateStatus(f'Reading Spreadsheet ... record {nRows} of {numrows}', nRows, numrows)
 
             if row[SAPcol['Material']]==None: MatNum = ''
             else: MatNum = row[SAPcol['Material']]
@@ -427,7 +370,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         # endfor
 
         wb.close()
-        return acomm     # need to do more than this, but for now, just exit
+        return      # need to do more than this, but for now, just exit
 
     # proc_MatlListSAPSprsheet_01ReadSpreadsheet
 
@@ -446,11 +389,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     # done_MatlListSAPSprsheet_01ReadSpreadsheet
 
     def proc_MatlListSAPSprsheet_02_identifyexistingMaterial(self, reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'get-matl-link',
-            statetext = f'Finding SAP MM60 Materials already in WICS Material List',
-            )
+        self.showUpdateStatus('Identifying Existing Materials ...')
         # UpdMaterialLinkSQL = 'UPDATE WICS_tmpmateriallistupdate, (select id, org_id, Material from WICS_materiallist) as MasterMaterials'
         # UpdMaterialLinkSQL += ' set WICS_tmpmateriallistupdate.MaterialLink_id = MasterMaterials.id, '
         # UpdMaterialLinkSQL += "     WICS_tmpmateriallistupdate.recStatus = 'FOUND' "
@@ -487,11 +426,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             session.commit()
         # endwith
 
-        set_async_comm_state(
-            reqid,
-            statecode = 'id-del-matl',
-            statetext = f'Identifying WICS Materials no longer in SAP MM60 Materials',
-            )
+        self.showUpdateStatus('Identifying WICS Materials no longer in SAP MM60 Materials')
         # MustKeepMatlsSelCond = ''
         # MustKeepMatlsSelCond += ' AND ' if MustKeepMatlsSelCond else ''
         # MustKeepMatlsSelCond += 'id NOT IN (SELECT DISTINCT tmucopy.MaterialLink_id AS Material_id FROM WICS_tmpmateriallistupdate tmucopy WHERE tmucopy.MaterialLink_id IS NOT NULL)'
@@ -547,11 +482,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             session.execute(stmt)
             session.commit()
 
-        set_async_comm_state(
-            reqid,
-            statecode = 'id-add-matl',
-            statetext = f'Identifying SAP MM60 Materials new to WICS',
-            )
+        self.showUpdateStatus('Identifying SAP MM60 Materials new to WICS')
         # MarkAddMatlsSelectSQL = "UPDATE WICS_tmpmateriallistupdate"
         # MarkAddMatlsSelectSQL += " SET recStatus = 'ADD'"
         # MarkAddMatlsSelectSQL += " WHERE (MaterialLink_id IS NULL) AND (recStatus is NULL)"
@@ -563,23 +494,15 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         self.done_MatlListSAPSprsheet_02_identifyexistingMaterial(reqid)
     # proc_MatlListSAPSprsheet_02_identifyexistingMaterial
     def done_MatlListSAPSprsheet_02_identifyexistingMaterial(self, reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'get-matl-link-done',
-            statetext = f'Finished linking SAP MM60 list to existing WICS Materials',
-            )
+        self.showUpdateStatus('Finished Linking SAP MM60 list to existing WICS Materials ...')   
         
         self.proc_MatlListSAPSprsheet_03_UpdateExistingRecs(reqid)
     # done_MatlListSAPSprsheet_02_identifyexistingMaterial
 
     def proc_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
         def setstate_MatlListSAPSprsheet_03_UpdateExistingRecs(fldName):
-            # acomm = 
-            set_async_comm_state(
-                reqid,
-                statecode = 'upd-existing-recs',
-                statetext = f'Updating _{fldName}_ Field in Existing Records',
-                )
+            self.showUpdateStatus(f'Updating _{fldName}_ Field in Existing Records')
+        # setstate_MatlListSAPSprsheet_03_UpdateExistingRecs
 
         setstate_MatlListSAPSprsheet_03_UpdateExistingRecs('')
 
@@ -628,11 +551,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         self.done_MatlListSAPSprsheet_03_UpdateExistingRecs(reqid)
     # proc_MatlListSAPSprsheet_03_UpdateExistingRecs
     def done_MatlListSAPSprsheet_03_UpdateExistingRecs(self, reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'upd-existing-recs-done',
-            statetext = f'Finished Updating Existing Records to MM60 values',
-            )
+        self.showUpdateStatus('Finished Updating Existing Records to MM60 values')
         
         self.proc_MatlListSAPSprsheet_04_Remove(reqid)
     # done_MatlListSAPSprsheet_03_UpdateExistingRecs
@@ -642,11 +561,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
             self.done_MatlListSAPSprsheet_04_Remove(reqid)
             return
 
-        set_async_comm_state(
-            reqid,
-            statecode = 'del-matl',
-            statetext = f'Removing WICS Materials no longer in SAP MM60 Materials',
-            )
+        self.showUpdateStatus('Removing WICS Materials no longer in SAP MM60 Materials')
         
         # do the Removals
         with get_app_session() as session:
@@ -659,20 +574,13 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         self.done_MatlListSAPSprsheet_04_Remove(reqid)
     # proc_MatlListSAPSprsheet_04_Remove
     def done_MatlListSAPSprsheet_04_Remove(self,reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'del-matl-done',
-            statetext = f'Finished Removing WICS Materials no longer in SAP MM60 Materials',
-            )
+        self.showUpdateStatus('Finished Removing WICS Materials no longer in SAP MM60 Materials')
+
         self.proc_MatlListSAPSprsheet_04_Add(reqid)
     # done_MatlListSAPSprsheet_04_Remove
 
     def proc_MatlListSAPSprsheet_04_Add(self, reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'add-matl',
-            statetext = f'Adding WICS Materials from SAP MM60 Materials',
-            )
+        self.showUpdateStatus('Adding New WICS Materials from SAP MM60 Materials')
         
         # do the Additions
         with get_app_session() as session:
@@ -708,21 +616,15 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         self.done_MatlListSAPSprsheet_04_Add(reqid)
     # proc_MatlListSAPSprsheet_04_Add
     def done_MatlListSAPSprsheet_04_Add(self, reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'add-matl-done',
-            statetext = f'Finished Adding WICS Materials from SAP MM60 Materials',
-            )
+        self.showUpdateStatus('Finished Adding WICS Materials from SAP MM60 Materials') 
+
         self.proc_MatlListSAPSprsheet_99_FinalProc(reqid)
     # done_MatlListSAPSprsheet_04_Add
 
     def proc_MatlListSAPSprsheet_99_FinalProc(self, reqid):
-        set_async_comm_state(
-            reqid,
-            statecode = 'done',
-            statetext = 'Finished Processing Spreadsheet',
-            )
+        self.showUpdateStatus('Finished Processing Spreadsheet')
     # proc_MatlListSAPSprsheet_99_FinalProc
+
     def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):   # pylint: disable=unused-argument
         # kill async_comm[reqid] object
 
