@@ -39,6 +39,7 @@ from app.models import (
     )
 
 
+# TODO: Refactor this into a reusable component in calvincTools
 class cFileSelectWidget(QWidget):
     """A QPushButton that accepts file drops and opens a QFileDialog
     with the dropped file pre-selected.
@@ -323,7 +324,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
                 'Material Group': 'SAPMaterialGroup', 'Matl Group': 'SAPMaterialGroup',
                 'Manufact.': 'SAPManuf', 
                 'MPN': 'SAPMPN', 
-                'ABC': 'SAPABC', 
+                'ABC': 'SAPABC', 'ABC Indicator ': 'SAPABC', 
                 'Price': 'Price', 'Standard price': 'Price',
                 'Price unit': 'PriceUnit', 'per': 'PriceUnit',
                 'Currency':'Currency',
@@ -537,7 +538,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
                     setstate_MatlListSAPSprsheet_03_UpdateExistingRecs(dbName)
                     # UPDATE this field
                     # for SQLite, the SQLAlchemy way is complex, so we do it manually here
-                    UpdSQLSetStmt = f"{MatlList_tbl}.{dbName}={tmpMatlListUpd_tbl}.{dbName}"
+                    UpdSQLSetStmt = f"{dbName}={tmpMatlListUpd_tbl}.{dbName}"
                     UpdSQLWhereStmt = f"(IFNULL({tmpMatlListUpd_tbl}.{dbName},{zeroVal}) != {zeroVal} AND IFNULL({MatlList_tbl}.{dbName},{zeroVal})!=IFNULL({tmpMatlListUpd_tbl}.{dbName},{zeroVal}))"
 
                     UpdSQLStmt = f"UPDATE {MatlList_tbl}"
@@ -545,7 +546,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
                     UpdSQLStmt += f" FROM {tmpMatlListUpd_tbl}"
                     UpdSQLStmt += f" WHERE ({tmpMatlListUpd_tbl}.MaterialLink={MatlList_tbl}.id) AND {UpdSQLWhereStmt}"
                     UpdSQLStmt += ";"
-                    
+
                     with get_app_session() as session:
                         session.execute(text(UpdSQLStmt))
                         session.commit()
