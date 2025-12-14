@@ -201,12 +201,12 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         for chk in self.dict_chkUpdtOption.values():
             layoutUpdtOptions.addWidget(chk)
         
-        self.chkDoNotDelete = QCheckBox("Do Not Delete Records Not in Spreadsheet")
+        self.chkDeleteIfNotinSprsht = QCheckBox("Delete Records Not in Spreadsheet")
         
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
         # mainFormPage.addWidget(PhaseWidget, 2, 0)
         mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
-        mainFormPage.addWidget(self.chkDoNotDelete, 2, 1)
+        mainFormPage.addWidget(self.chkDeleteIfNotinSprsht, 2, 1)
         
         self.wdgtUpdtStatusText = QLabel("")
         self.wdgtUpdtStatusProgBar = QProgressBar()
@@ -491,7 +491,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         #     {'recStatus': 'ADD'}
         # )
         Repository(get_app_sessionmaker(), tmpMaterialListUpdate).updatewhere(
-            tmpMaterialListUpdate.MaterialLink is None and (tmpMaterialListUpdate.recStatus is None),
+            (tmpMaterialListUpdate.MaterialLink == None) & (tmpMaterialListUpdate.recStatus == None),
             {'recStatus': 'ADD'}
         )
 
@@ -561,7 +561,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     # done_MatlListSAPSprsheet_03_UpdateExistingRecs
 
     def proc_MatlListSAPSprsheet_04_Remove(self, reqid):
-        if self.chkDoNotDelete.isChecked():
+        if not self.chkDeleteIfNotinSprsht.isChecked():
             self.done_MatlListSAPSprsheet_04_Remove(reqid)
             return
 
@@ -632,9 +632,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):   # pylint: disable=unused-argument
         # kill async_comm[reqid] object
 
-        # DON'T FORGET TO PUT THIS BACK!!!
-        # Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(True)
-        pass
+        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(True)
     # proc_MatlListSAPSprsheet_99_Cleanup
     
 # UpdateMatlListfromSAP
@@ -654,7 +652,7 @@ class ShowUpdateMatlListfromSAPForm(QWidget):
         self.wdgtScrollArea = QScrollArea()
         self.wdgtScrollArea.setWidgetResizable(True)
         self.wdgtScrollArea.setWidget(self.wdgtMainArea)
-        myLayout.addWidget(self.wdgtMainArea)
+        myLayout.addWidget(self.wdgtScrollArea)
         
         self.listImportErrors = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
             tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('err-')
@@ -677,7 +675,7 @@ class ShowUpdateMatlListfromSAPForm(QWidget):
             lblAdditionsTitle = QLabel("The following materials were added to WICS:")
             self.layoutMainArea.addWidget(lblAdditionsTitle)
             for addRec in self.listAdditions:
-                lblAdd = QLabel(f"id {addRec.id}, Material: {addRec.Material}, Description: {addRec.Description}")
+                lblAdd = QLabel(f"id {addRec.id}, Material: (org {addRec.org_id}) {addRec.Material}, {addRec.Description}")
                 self.layoutMainArea.addWidget(lblAdd)
         else:
             lblNoAdditions = QLabel("No new materials were added to WICS.")
@@ -691,7 +689,7 @@ class ShowUpdateMatlListfromSAPForm(QWidget):
             lblRemovalsTitle = QLabel("The following materials were removed from WICS:")
             self.layoutMainArea.addWidget(lblRemovalsTitle)
             for delRec in self.listRemovals:
-                lblDel = QLabel(f"Material: {delRec.Material}, Description: {delRec.Description}")
+                lblDel = QLabel(f"Material: (org {delRec.org_id}) {delRec.Material}, {delRec.Description}")
                 self.layoutMainArea.addWidget(lblDel)
         else:
             lblNoRemovals = QLabel("No materials were removed from WICS.")
