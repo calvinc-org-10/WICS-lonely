@@ -5,7 +5,7 @@ from typing import (Any, )
 from datetime import datetime
 
 from PySide6.QtCore import (
-    Qt, Slot, 
+    Qt, Slot, Signal,
     QMimeData, QUrl, 
     )
 from PySide6.QtGui import (
@@ -17,7 +17,7 @@ from PySide6.QtWidgets import (
     QWidget, 
     QPushButton, QLabel, QCheckBox, QProgressBar, 
     QGroupBox, 
-    QGridLayout, QHBoxLayout, QVBoxLayout, QTabWidget,
+    QGridLayout, QHBoxLayout, QVBoxLayout, QTabWidget, QScrollArea,
     QFileDialog,
     )
 
@@ -45,6 +45,7 @@ class cFileSelectWidget(QWidget):
     """
     _btnChooseFile: QPushButton = QPushButton()
     _lblFileChosen: QLabel = QLabel("No file chosen")
+    fileChosen: Signal = Signal()
     
     def __init__(self, *args, btnIcon=None, btnText="Pick or Drop File Here", **kwargs):
         # TODO: add parameters for initial directory, file filters, etc.
@@ -135,7 +136,7 @@ class cFileSelectWidget(QWidget):
             self,                               # Parent
             "File Dropped! Verify Selection",    # Dialog Title
             directory,                           # Initial Directory
-            "All Files (*)",                     # Filter
+            f"All Files (*);;{file_name}",                     # Filter
             file_name,                           # Pre-selected File Name
         )
 
@@ -152,6 +153,7 @@ class cFileSelectWidget(QWidget):
 
         if selected_file:
             self._lblFileChosen.setText(selected_file)
+            self.fileChosen.emit()
             # Here you can handle the selected file as needed
             # print(f"User confirmed selection: {selected_file}")
         else:
@@ -182,16 +184,9 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         chooseFileLayout = QGridLayout(chooseFileWidget)
         lblChooseFileLabel = QLabel("Choose or Drop SAP Material List Spreadsheet File:")
         self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
-        self.btnChooseFile.clicked.connect(self.chooseFile)
+        self.btnChooseFile.fileChosen.connect(self.FileChosen)
         chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
         chooseFileLayout.addWidget(self.btnChooseFile, 1, 0)
-        
-        # PhaseWidget = QWidget()
-        # PhaseLayout = QHBoxLayout(PhaseWidget)
-        # lblShowPhaseTitle = QLabel("Phase:")
-        # lblShowPhase = QLabel("No file chosen")
-        # PhaseLayout.addWidget(lblShowPhaseTitle)
-        # PhaseLayout.addWidget(lblShowPhase, alignment=Qt.AlignmentFlag.AlignLeft)
         
         self.dict_chkUpdtOption = {}
         self.dict_chkUpdtOption['Description'] = QCheckBox("Description")
@@ -257,9 +252,9 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         return False
     
     @Slot()
-    def chooseFile(self):
-        # TODO: Implement file chooser logic
-        print("Choose File button clicked")
+    def FileChosen(self):
+        # enable the Upload button
+        pass
     
     @Slot()
     def uploadFile(self):
@@ -275,6 +270,10 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         self.done_MatlListSAPSprsheet_01ReadSpreadsheet(reqid)      # this trigger most of the rest of the processing chain
         
         # present results to user
+        childScreen = ShowUpdateMatlListfromSAPForm()
+        childScreen.setAttribute(Qt.WidgetAttribute.WA_DeleteOnClose)
+        childScreen.show()
+
         
         self.proc_MatlListSAPSprsheet_99_Cleanup(reqid)
         self.closeForm()
@@ -284,6 +283,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     @Slot()
     def closeForm(self):
         # TODO: Implement close form logic
+        self.close()
         pass
 
     def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
@@ -301,7 +301,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         # tmpMaterialListUpdate.objects.using(dbToUse).all().delete() - from client-server Django version
         # Repository.removeRecs_withcondition not implemented yet
         # So we do it manually here
-        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(lambda rec: True)
+        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(True)
         # with get_app_session() as session:
         #     stmt = delete(tmpMaterialListUpdate)
         #     session.execute(stmt)
@@ -399,10 +399,10 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         #     cursor.execute(UpdMaterialLinkSQL)
         # this is a little too wild for the Repository pattern, so we do it manually here
         with get_app_session() as session:
-            stmt = (
+            stmt = ( 
                 update(tmpMaterialListUpdate)
                 .values(
-                    MaterialLink_id=select(MaterialList.id)
+                    MaterialLink=select(MaterialList.id)
                         .where(
                             tmpMaterialListUpdate.org_id == MaterialList.org_id,
                             tmpMaterialListUpdate.Material == MaterialList.Material
@@ -486,8 +486,12 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         # MarkAddMatlsSelectSQL = "UPDATE WICS_tmpmateriallistupdate"
         # MarkAddMatlsSelectSQL += " SET recStatus = 'ADD'"
         # MarkAddMatlsSelectSQL += " WHERE (MaterialLink_id IS NULL) AND (recStatus is NULL)"
+        # Repository(get_app_sessionmaker(), tmpMaterialListUpdate).updatewhere(
+        #     lambda rec: rec.MaterialLink_id is None and (rec.recStatus is None),
+        #     {'recStatus': 'ADD'}
+        # )
         Repository(get_app_sessionmaker(), tmpMaterialListUpdate).updatewhere(
-            lambda rec: rec.MaterialLink_id is None and (rec.recStatus is None),
+            tmpMaterialListUpdate.MaterialLink is None and (tmpMaterialListUpdate.recStatus is None),
             {'recStatus': 'ADD'}
         )
 
@@ -539,7 +543,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
                     UpdSQLStmt = f"UPDATE {MatlList_tbl}"
                     UpdSQLStmt += f" SET {UpdSQLSetStmt}"
                     UpdSQLStmt += f" FROM {tmpMatlListUpd_tbl}"
-                    UpdSQLStmt += f" WHERE ({tmpMatlListUpd_tbl}.MaterialLink_id={MatlList_tbl}.id) AND {UpdSQLWhereStmt}"
+                    UpdSQLStmt += f" WHERE ({tmpMatlListUpd_tbl}.MaterialLink={MatlList_tbl}.id) AND {UpdSQLWhereStmt}"
                     UpdSQLStmt += ";"
                     
                     with get_app_session() as session:
@@ -628,7 +632,70 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def proc_MatlListSAPSprsheet_99_Cleanup(self, reqid):   # pylint: disable=unused-argument
         # kill async_comm[reqid] object
 
-        Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(lambda rec: True)
+        # DON'T FORGET TO PUT THIS BACK!!!
+        # Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(True)
+        pass
     # proc_MatlListSAPSprsheet_99_Cleanup
     
 # UpdateMatlListfromSAP
+
+class ShowUpdateMatlListfromSAPForm(QWidget):
+    """A form to show the Update Material List from SAP MM60 or ZMSQV001 Spreadsheet form."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        
+        self.setWindowTitle("Update Material List from SAP MM60 or ZMSQV001 Spreadsheet - Results")
+        myLayout = QVBoxLayout(self)
+        lblResultsTitle = QLabel("Update Material List from SAP MM60 or ZMSQV001 Spreadsheet - Results")
+        myLayout.addWidget(lblResultsTitle)
+        
+        self.wdgtMainArea = QWidget()
+        self.layoutMainArea = QVBoxLayout(self.wdgtMainArea)
+        self.wdgtScrollArea = QScrollArea()
+        self.wdgtScrollArea.setWidgetResizable(True)
+        self.wdgtScrollArea.setWidget(self.wdgtMainArea)
+        myLayout.addWidget(self.wdgtMainArea)
+        
+        self.listImportErrors = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
+            tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('err-')
+        )
+        if self.listImportErrors:
+            lblErrorsTitle = QLabel("The following errors were encountered during the update:")
+            self.layoutMainArea.addWidget(lblErrorsTitle)
+            for errRec in self.listImportErrors:
+                lblErr = QLabel(f"Material: {errRec.Material}, Error: {errRec.errmsg}")
+                self.layoutMainArea.addWidget(lblErr)
+        else:
+            lblNoErrors = QLabel("No errors were encountered during the update.")
+            self.layoutMainArea.addWidget(lblNoErrors)
+        # endif ImpErrList
+        
+        self.listAdditions = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
+            tmpMaterialListUpdate.recStatus == 'ADD'
+        )
+        if self.listAdditions:
+            lblAdditionsTitle = QLabel("The following materials were added to WICS:")
+            self.layoutMainArea.addWidget(lblAdditionsTitle)
+            for addRec in self.listAdditions:
+                lblAdd = QLabel(f"id {addRec.id}, Material: {addRec.Material}, Description: {addRec.Description}")
+                self.layoutMainArea.addWidget(lblAdd)
+        else:
+            lblNoAdditions = QLabel("No new materials were added to WICS.")
+            self.layoutMainArea.addWidget(lblNoAdditions)
+        # endif AddList
+        
+        self.listRemovals = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
+            tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('DEL ')
+        )
+        if self.listRemovals:
+            lblRemovalsTitle = QLabel("The following materials were removed from WICS:")
+            self.layoutMainArea.addWidget(lblRemovalsTitle)
+            for delRec in self.listRemovals:
+                lblDel = QLabel(f"Material: {delRec.Material}, Description: {delRec.Description}")
+                self.layoutMainArea.addWidget(lblDel)
+        else:
+            lblNoRemovals = QLabel("No materials were removed from WICS.")
+            self.layoutMainArea.addWidget(lblNoRemovals)
+        # endif RemovalsList
+        
+    # __init__
