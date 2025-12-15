@@ -4,6 +4,7 @@ from PySide6.QtWidgets import (QWidget, QVBoxLayout, )
 
 
 from sysver import (_appname, sysver, )
+from calvincTools.apphooks import cTools_apphooks
 from calvincTools.cMenu import cMenu
 
 from menuformname_viewMap import FormNameToURL_Map
@@ -15,14 +16,16 @@ class MainScreen(QWidget):
         super().__init__(parent)
         if not self.objectName():
             self.setObjectName("MainWindow")
-            
-        theMenu = cMenu(
-            parent,
-            sysver=sysver['DEV'],
+        
+        cTools_apphooks.initialize(
+            appname=_appname,
+            sysver=sysver['PROD'],
             FormNameToURL_Map=FormNameToURL_Map,
             ExternalWebPageURL_Map=ExternalWebPageURL_Map,
             app_sessionmaker=get_app_sessionmaker(),
-            )
+        )
+        
+        theMenu = cMenu(parent)
         # theMenu.loadMenu(3, 5) #FIX cMenu!!
         llayout = QVBoxLayout(self)
         llayout.addWidget(theMenu)
