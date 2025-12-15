@@ -42,7 +42,7 @@ FormNameToURL_Map['rptMaterialLocations'.lower()] = ('MaterialLocations', None)
 FormNameToURL_Map['LocationList'.lower()] = ('LocationList', None)
 FormNameToURL_Map['sap'.lower()] = ('showtable-SAP', None)
 FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
-FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.WhsePartTypes)
+FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.PartTypesForm)
 
 
 FormNameToURL_Map['test01'.lower()] = ('', forms.UpdateMatlListfromSAP)
