@@ -1,3 +1,5 @@
+#type: ignore
+#pylint: skip-file
 import datetime
 import json
 import os, uuid
