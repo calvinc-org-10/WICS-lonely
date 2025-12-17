@@ -1,5 +1,5 @@
 
-# import testforms
+import _newcode
 import app.forms as forms
 # from userprofiles.views import fnWICSuserForm
 
@@ -21,7 +21,7 @@ FormNameToURL_Map['l6-wics-uadmin'.lower()] = FormNameToURL_Map['l10-wics-uadmin
 FormNameToURL_Map['django-admin'.lower()] = (None, LoadAdmin)
 FormNameToURL_Map['frmcount-schedulehistory-by-counterdate'.lower()] = ('CountScheduleList', None)
 FormNameToURL_Map['frmcountentry'.lower()] = ('CountEntryForm', forms.CountEntryForm)
-FormNameToURL_Map['frmUploadCountEntry'.lower()] = ('UploadActualCountSprsht', None)
+FormNameToURL_Map['frmUploadCountEntry'.lower()] = ('UploadActualCountSprsht', _newcode.UploadActCountSprsht)
 FormNameToURL_Map['frmUploadCountSched'.lower()] = ('UploadCountSchedSprsht', None)
 FormNameToURL_Map['frmcountsummarypreview'.lower()] = ('CountSummaryReport', None)
 FormNameToURL_Map['frmrequestedcountsummary'.lower()] = ('CountSummaryReport-v-init', None)
@@ -31,6 +31,7 @@ FormNameToURL_Map['frmmpnlookup'.lower()] = ('MPNLookup', None)
 FormNameToURL_Map['frmParts-By-Type-with-LastCounts'.lower()] = ('MatlByPartType', None)
 FormNameToURL_Map['rptMaterialByLastCount'.lower()] = ('MatlByLastCountDate', None)
 FormNameToURL_Map['rptMaterialByDESCValue'.lower()] = ('MatlByDESCValue', None)
+FormNameToURL_Map['matllistupdt'.lower()] = ('', forms.UpdateMatlListfromSAP)
 FormNameToURL_Map['frmRandCountScheduler'.lower()] = (None, None)
 
 FormNameToURL_Map['frmCountScheduleEntry'.lower()] = ('CountScheduleForm', forms.CountScheduleRecordForm)
@@ -45,5 +46,4 @@ FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
 FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.PartTypesForm)
 
 
-FormNameToURL_Map['test01'.lower()] = ('', forms.UpdateMatlListfromSAP)
-FormNameToURL_Map['matllistupdt'.lower()] = ('', forms.UpdateMatlListfromSAP)
+FormNameToURL_Map['test01'.lower()] = ('', _newcode.UploadActCountSprsht)

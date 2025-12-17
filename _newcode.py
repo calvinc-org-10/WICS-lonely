@@ -1,26 +1,27 @@
-# pylint: disable=f-string-without-interpolation
-
+"""
+code that's being auditioned
+"""
 from typing import (Any, )
 from datetime import (datetime, date, )
 
 from PySide6.QtCore import (
     Qt,
     Slot, Signal,
-    QMimeData, QUrl, 
+    QMimeData, QUrl,
     )
 from PySide6.QtGui import (
     QIcon,
-    QDragEnterEvent, QDropEvent, 
+    QDragEnterEvent, QDropEvent,
     )
 from PySide6.QtWidgets import (
     QWidget, 
     QPushButton, QLabel, QCheckBox, QProgressBar,
     QGroupBox, 
-    QBoxLayout, QHBoxLayout, QVBoxLayout, QGridLayout, QTabWidget, 
+    QBoxLayout, QHBoxLayout, QVBoxLayout, QGridLayout, QTabWidget,
     QFileDialog,
     )
 
-from mathematical_expressions_parser.eval import evaluate 
+from mathematical_expressions_parser.eval import evaluate
 
 from app.database import (Repository, get_app_sessionmaker, )
 from app.models import (
@@ -167,9 +168,9 @@ class cFileSelectWidget(QWidget):
 
 
 class UploadActCountSprsht(cSimpleRecordForm):
-    _ORMmodel = None
+    _ORMmodel = ActualCounts
     _formname = "Upload Count Entry Spreadsheet"
-    _ssnmaker = None
+    _ssnmaker = get_app_sessionmaker()
     fieldDefs = {
         # no fields to edit, everything manually handled
     }
@@ -190,31 +191,13 @@ class UploadActCountSprsht(cSimpleRecordForm):
 
         chooseFileWidget = QWidget()
         chooseFileLayout = QGridLayout(chooseFileWidget)
-        lblChooseFileLabel = QLabel("Choose or Drop SAP Material List Spreadsheet File:")
+        lblChooseFileLabel = QLabel("Choose or Drop Count Entry Spreadsheet File:")
         self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
         self.btnChooseFile.fileChosen.connect(self.FileChosen)
         chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
         chooseFileLayout.addWidget(self.btnChooseFile, 1, 0)
 
-        self.dict_chkUpdtOption = {}
-        self.dict_chkUpdtOption['Description'] = QCheckBox("Description")
-        self.dict_chkUpdtOption['SAPMatlType'] = QCheckBox("SAP Material Type")
-        self.dict_chkUpdtOption['SAPMatlGroup'] = QCheckBox("SAP Material Group")
-        self.dict_chkUpdtOption['SAPManuf'] = QCheckBox("SAP Manufacturer")
-        self.dict_chkUpdtOption['SAPMPN'] = QCheckBox("SAP Manufacturer Part Number")
-        self.dict_chkUpdtOption['SAPABC'] = QCheckBox("SAP ABC Designation")
-        self.dict_chkUpdtOption['SAPPrice'] = QCheckBox("Price, Price Unit and Currency")
-        grpbxUpdtOptions = QGroupBox('Update Existing Material Records for these Fields:')
-        layoutUpdtOptions = QVBoxLayout(grpbxUpdtOptions)
-        for chk in self.dict_chkUpdtOption.values():
-            layoutUpdtOptions.addWidget(chk)
-
-        self.chkDeleteIfNotinSprsht = QCheckBox("Delete Records Not in Spreadsheet")
-
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
-        # mainFormPage.addWidget(PhaseWidget, 2, 0)
-        mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
-        mainFormPage.addWidget(self.chkDeleteIfNotinSprsht, 2, 1)
 
         self.wdgtUpdtStatusText = QLabel("")
         self.wdgtUpdtStatusProgBar = QProgressBar()
@@ -224,7 +207,7 @@ class UploadActCountSprsht(cSimpleRecordForm):
     # _placeFields
     
     def _addActionButtons(self, layoutButtons: QBoxLayout | None = None, layoutHorizontal: bool = True, NavActions: list[tuple[str, QIcon]] | None = None, CRUDActions: list[tuple[str, QIcon]] | None = None) -> None:
-        btnUploadFile = QPushButton(icon('fa5s.file-upload'), "Upload Data from Spreadsheet")
+        btnUploadFile = QPushButton(icon('fa5s.file-upload'), "Upload Counts")
         btnUploadFile.clicked.connect(self.uploadFile)
         btnClose = QPushButton(icon('mdi.close-octagon'), "Close Form")
         btnClose.clicked.connect(self.closeForm)
@@ -319,7 +302,6 @@ class UploadActCountSprsht(cSimpleRecordForm):
     def closeForm(self):
         # TODO: Implement close form logic
         self.close()
-        pass
 
 
     ###########################################################
@@ -388,7 +370,7 @@ class UploadActCountSprsht(cSimpleRecordForm):
             try:
                 cleanval = int(val)
                 usefld = True
-            except:
+            except (ValueError, TypeError):
                 usefld = False
         elif fld in \
             ['Material', 
