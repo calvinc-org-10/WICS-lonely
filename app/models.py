@@ -279,7 +279,7 @@ class ActualCounts(cAppModelBase):
     FLAG_MovementDuringCount: Mapped[bool] = mapped_column(Boolean, nullable=True, default=False)
     Notes: Mapped[str] = mapped_column(String(250), nullable=True)
     
-    Material: Mapped[MaterialList] = relationship(MaterialList, backref="actual_counts")
+    Material: Mapped[MaterialList] = relationship(MaterialList, backref="actual_counts", lazy="selectin")
 
     __table_args__ = (
         Index('ix_actualcounts_countdate_material', 'CountDate', 'Material_id'),
