@@ -149,7 +149,6 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     def closeForm(self):
         # TODO: Implement close form logic
         self.close()
-        pass
 
 
     ###########################################################

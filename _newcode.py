@@ -664,3 +664,67 @@ class UploadActCountSprsht(cSimpleRecordForm):
         Repository(get_app_sessionmaker(), UploadSAPResults).removewhere(True)
 
 # UploadActCountSprsht
+
+RESTARTHERE class ShowUpdateMatlListfromSAPForm(QWidget):
+    """A form to show the Update Material List from SAP MM60 or ZMSQV001 Spreadsheet form."""
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        self.setWindowTitle("Update Material List from SAP MM60 or ZMSQV001 Spreadsheet - Results")
+        myLayout = QVBoxLayout(self)
+        lblResultsTitle = QLabel("Update Material List from SAP MM60 or ZMSQV001 Spreadsheet - Results")
+        myLayout.addWidget(lblResultsTitle)
+
+        wdgtMainArea = QWidget()
+        layoutMainArea = QVBoxLayout(wdgtMainArea)
+        wdgtScrollArea = QScrollArea()
+        wdgtScrollArea.setWidgetResizable(True)
+        wdgtScrollArea.setWidget(wdgtMainArea)
+        myLayout.addWidget(wdgtScrollArea)
+
+        listImportErrors = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
+            tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('err-')
+        )
+        kountImportErrors = len(listImportErrors)
+        if listImportErrors:
+            lblErrorsTitle = QLabel(f"{kountImportErrors} errors were encountered during the update:")
+            layoutMainArea.addWidget(lblErrorsTitle)
+            for errRec in listImportErrors:
+                lblErr = QLabel(f"Material: {errRec.Material}, Error: {errRec.errmsg}")
+                layoutMainArea.addWidget(lblErr)
+        else:
+            lblNoErrors = QLabel("No errors were encountered during the update.")
+            layoutMainArea.addWidget(lblNoErrors)
+        # endif ImpErrList
+
+        listAdditions = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
+            tmpMaterialListUpdate.recStatus == 'ADD'
+        )
+        kountAdditions = len(listAdditions)
+        if listAdditions:
+            lblAdditionsTitle = QLabel(f"{kountAdditions} materials were added to WICS:")
+            layoutMainArea.addWidget(lblAdditionsTitle)
+            for addRec in listAdditions:
+                lblAdd = QLabel(f"id {addRec.id}, Material: (org {addRec.org_id}) {addRec.Material}, {addRec.Description}")
+                layoutMainArea.addWidget(lblAdd)
+        else:
+            lblNoAdditions = QLabel("No new materials were added to WICS.")
+            layoutMainArea.addWidget(lblNoAdditions)
+        # endif AddList
+
+        listRemovals = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
+            tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('DEL ')
+        )
+        kountRemovals = len(listRemovals)
+        if listRemovals:
+            lblRemovalsTitle = QLabel(f"{kountRemovals} materials were removed from WICS:")
+            layoutMainArea.addWidget(lblRemovalsTitle)
+            for delRec in listRemovals:
+                lblDel = QLabel(f"Material: (org {delRec.org_id}) {delRec.Material}, {delRec.Description}")
+                layoutMainArea.addWidget(lblDel)
+        else:
+            lblNoRemovals = QLabel("No materials were removed from WICS.")
+            layoutMainArea.addWidget(lblNoRemovals)
+        # endif RemovalsList
+    # __init__
+# ShowUpdateMatlListfromSAPForm
