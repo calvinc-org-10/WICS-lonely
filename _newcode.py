@@ -14,18 +14,11 @@ from PySide6.QtGui import (
     QDragEnterEvent, QDropEvent,
     )
 from PySide6.QtWidgets import (
-    QWidget, 
+    QWidget,
     QPushButton, QLabel, QCheckBox, QProgressBar,
-    QGroupBox, 
+    QGroupBox, QScrollArea,
     QBoxLayout, QHBoxLayout, QVBoxLayout, QGridLayout, QTabWidget,
     QFileDialog,
-    )
-
-from mathematical_expressions_parser.eval import evaluate
-
-from app.database import (Repository, get_app_sessionmaker, )
-from app.models import (
-    UploadSAPResults, MaterialList, ActualCounts,
     )
 
 from openpyxl import load_workbook
@@ -37,7 +30,12 @@ from calvincTools.utils import (
     calvindate, 
     )
 
+from mathematical_expressions_parser.eval import evaluate
 
+from app.database import (Repository, get_app_sessionmaker, )
+from app.models import (
+    UploadSAPResults, MaterialList, ActualCounts,
+    )
 
 
 
@@ -271,31 +269,6 @@ class UploadActCountSprsht(cSimpleRecordForm):
 
         self.proc_UpActCountSprsheet_99_Cleanup()
         self.closeForm()
-    # uploadFile
-    # do I still need this?
-        # elif client_phase=='wantresults':
-        #     QS = UploadSAPResults.objects.filter(errState = 'nRowsTotal')
-        #     if QS.exists(): SprshtRowNum = QS[0].rowNum
-        #     else: SprshtRowNum = 0
-        #     QS = UploadSAPResults.objects.filter(errState = 'nRowsAdded')
-        #     if QS.exists(): nRowsAdded = QS[0].rowNum
-        #     else: nRowsAdded = 0
-        #     QS = UploadSAPResults.objects.filter(errState = 'nRowsErrors')
-        #     if QS.exists(): nRowsErrors = QS[0].rowNum
-        #     else: nRowsErrors = 0
-        #     QS = UploadSAPResults.objects.filter(errState = 'nRowsIgnored')
-        #     if QS.exists(): nRowsNoMaterial = QS[0].rowNum
-        #     else: nRowsNoMaterial = 0
-        #     UplResults = UploadSAPResults.objects.exclude(errState__in = ['nRowsAdded','nRowsTotal','nRowsErrors','nRowsIgnored']).order_by('rowNum')
-        #     cntext = {'UplResults':UplResults, 
-        #             'ResultStats': {
-        #                     'nRowsRead': SprshtRowNum - 1,      
-        #                         # -1 because header doesn't count
-        #                     'nRowsAdded': nRowsAdded ,
-        #                     'nRowsNoMaterial': nRowsNoMaterial,
-        #                     'nRowsErrors': nRowsErrors,
-        #                 },
-        #             }
 
 
     @Slot()
@@ -665,14 +638,16 @@ class UploadActCountSprsht(cSimpleRecordForm):
 
 # UploadActCountSprsht
 
-RESTARTHERE class ShowUpdateMatlListfromSAPForm(QWidget):
+class  ShowUpdateMatlListfromSAPForm(QWidget):
     """A form to show the Update Material List from SAP MM60 or ZMSQV001 Spreadsheet form."""
+    _formname = "Upload Count Spreadsheet - Results"
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        self.setWindowTitle("Update Material List from SAP MM60 or ZMSQV001 Spreadsheet - Results")
+        self.setWindowTitle(self._formname)
         myLayout = QVBoxLayout(self)
-        lblResultsTitle = QLabel("Update Material List from SAP MM60 or ZMSQV001 Spreadsheet - Results")
+        lblResultsTitle = QLabel(self._formname)
         myLayout.addWidget(lblResultsTitle)
 
         wdgtMainArea = QWidget()
@@ -682,49 +657,32 @@ RESTARTHERE class ShowUpdateMatlListfromSAPForm(QWidget):
         wdgtScrollArea.setWidget(wdgtMainArea)
         myLayout.addWidget(wdgtScrollArea)
 
-        listImportErrors = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
-            tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('err-')
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsTotal'
         )
-        kountImportErrors = len(listImportErrors)
-        if listImportErrors:
-            lblErrorsTitle = QLabel(f"{kountImportErrors} errors were encountered during the update:")
-            layoutMainArea.addWidget(lblErrorsTitle)
-            for errRec in listImportErrors:
-                lblErr = QLabel(f"Material: {errRec.Material}, Error: {errRec.errmsg}")
-                layoutMainArea.addWidget(lblErr)
-        else:
-            lblNoErrors = QLabel("No errors were encountered during the update.")
-            layoutMainArea.addWidget(lblNoErrors)
-        # endif ImpErrList
-
-        listAdditions = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
-            tmpMaterialListUpdate.recStatus == 'ADD'
+        nRowsRead = statusVal[0].rowNum - 1 if statusVal else 0     # -1 because header doesn't count
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsAdded'
         )
-        kountAdditions = len(listAdditions)
-        if listAdditions:
-            lblAdditionsTitle = QLabel(f"{kountAdditions} materials were added to WICS:")
-            layoutMainArea.addWidget(lblAdditionsTitle)
-            for addRec in listAdditions:
-                lblAdd = QLabel(f"id {addRec.id}, Material: (org {addRec.org_id}) {addRec.Material}, {addRec.Description}")
-                layoutMainArea.addWidget(lblAdd)
-        else:
-            lblNoAdditions = QLabel("No new materials were added to WICS.")
-            layoutMainArea.addWidget(lblNoAdditions)
-        # endif AddList
-
-        listRemovals = Repository(get_app_sessionmaker(), tmpMaterialListUpdate).get_all(
-            tmpMaterialListUpdate.recStatus is not None and tmpMaterialListUpdate.recStatus.startswith('DEL ')
+        nRowsAdded = statusVal[0].rowNum if statusVal else 0
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsErrors'
         )
-        kountRemovals = len(listRemovals)
-        if listRemovals:
-            lblRemovalsTitle = QLabel(f"{kountRemovals} materials were removed from WICS:")
-            layoutMainArea.addWidget(lblRemovalsTitle)
-            for delRec in listRemovals:
-                lblDel = QLabel(f"Material: (org {delRec.org_id}) {delRec.Material}, {delRec.Description}")
-                layoutMainArea.addWidget(lblDel)
-        else:
-            lblNoRemovals = QLabel("No materials were removed from WICS.")
-            layoutMainArea.addWidget(lblNoRemovals)
-        # endif RemovalsList
+        nRowsErrors = statusVal[0].rowNum if statusVal else 0
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsIgnored'
+        )
+        nRowsNoMaterial = statusVal[0].rowNum if statusVal else 0
+        
+        UplResults = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState.notin_(['nRowsAdded','nRowsTotal','nRowsErrors','nRowsIgnored'])
+        )
+        lblSummary = QLabel(f"Upload Summary: {nRowsRead} rows read, {nRowsAdded} rows added, {nRowsErrors} rows with errors, {nRowsNoMaterial} rows ignored (no material).")
+        layoutMainArea.addWidget(lblSummary)
+        
+        for res in UplResults:
+            rstr = f"{res.errState}: {res.errmsg}" if 'error' in res.errState else f"Count Record {res.errmsg} added"
+            lblrslt = QLabel(rstr)
+            layoutMainArea.addWidget(lblrslt)
     # __init__
 # ShowUpdateMatlListfromSAPForm
