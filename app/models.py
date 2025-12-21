@@ -16,7 +16,7 @@ from PySide6.QtCore import (QObject, )
 from PySide6.QtWidgets import (QApplication, )
 # from cMenu.utils import (pleaseWriteMe, )
 
-from .database import app_Session
+from .database import app_Session       # pylint: disable=relative-beyond-top-level      # this is correct
 
 ix_naming_convention = {
     "ix": "ix_%(column_0_label)s",
@@ -186,38 +186,6 @@ class tmpMaterialListUpdate(cAppModelBase):
     def __str__(self) -> str:
         return f'{self.Material}'
         
-# class MaterialPhotos(cAppModelBase):
-
-#     __tablename__ = 'materialphotos'
-#     _rltblMatlFld = 'Material_id'
-#     _rltblMatlName = MaterialList.__tablename__
-
-#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-#     Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
-#     Photo: Mapped[bytes] = mapped_column(LargeBinary, nullable=True)
-#     # use this object instead? Photo = models.ImageField(upload_to='MatlImg/',height_field='height',width_field='width')
-#     height: Mapped[int] = mapped_column(Integer, nullable=False)
-#     width: Mapped[int] = mapped_column(Integer, nullable=False)
-#     Notes : Mapped[str] = mapped_column(String(250), nullable=False, default='')
-    
-# class MfrPNtoMaterial(cAppModelBase):
-
-#     __tablename__ = PUT_THE_TABLE_NAME_HERE
-
-#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-#     MfrPN = models.CharField(max_length=250, null=False)
-#     Manufacturer = models.CharField(max_length=250, null=True, blank=True)
-#     Material = models.ForeignKey(MaterialList, on_delete=models.CASCADE)
-#     Notes = models.CharField(max_length=250, null=True, blank=True)
-
-#     class Meta:
-#         constraints = [
-#                 models.UniqueConstraint(fields=['MfrPN'],name="wics_mfrpntomaterial_mfrpn_unq"),
-#             ]
-#         indexes = [
-#             models.Index(fields=['Manufacturer']),
-#         ]
-
 ###########################################################
 ###########################################################
 
@@ -226,8 +194,10 @@ class CountSchedule(cAppModelBase):
     __tablename__ = 'countschedule'
     _rltblMatlFld = 'Material_id'
     _rltblMatlName = MaterialList.__tablename__
+    
     # _rltblUserFld = 'Requestor_userid'
     # _rltblUserName = WICSuser.__tablename__
+    #  why does Pylint get confused when it sees these commented-out lines? before Mapped[...] lines?
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     CountDate: Mapped[date] = mapped_column(Date, nullable=False)
@@ -254,9 +224,9 @@ class CountSchedule(cAppModelBase):
 
     def __str__(self) -> str:
         # return str(self.pk) + ": " + str(self.CountDate) + " / " + str(self.Material) + " / " + str(self.Counter)
-        return f'{self.id}: {self.CountDate:%Y-%m-%d}  / {self.Material} / {self.Counter}'
 
 ###########################################################
+        return f'{self.id}: {self.CountDate:%Y-%m-%d}  / {self.Material} / {self.Counter}'
 ###########################################################
 
 class ActualCounts(cAppModelBase):
@@ -364,7 +334,8 @@ class SAP_SOHRecs(cAppModelBase):
     ValueBlocked: Mapped[float] = mapped_column(Float, nullable=True)
     Batch: Mapped[str] = mapped_column(String(20), nullable=True)
     Vendor: Mapped[str] = mapped_column(String(20), nullable=True)
-    Material: Mapped[MaterialList] = relationship(MaterialList, backref="sap_soh_recs")
+    
+    Material: Mapped[MaterialList] = relationship(MaterialList, backref="sap_soh_recs", lazy="selectin")
 
     __table_args__ = (
         Index('ix_sap_sohrecs_uploadedat_org_materialpartnum', 'uploaded_at', 'org_id', 'MaterialPartNum'),
@@ -440,6 +411,39 @@ class SAPPlants_org(cAppModelBase):
 ###########################################################
 ###########################################################
 
+# class MaterialPhotos(cAppModelBase):
+
+#     __tablename__ = 'materialphotos'
+#     _rltblMatlFld = 'Material_id'
+#     _rltblMatlName = MaterialList.__tablename__
+
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     Material_id: Mapped[int] = mapped_column(Integer, ForeignKey(f"{_rltblMatlName}.id"), onupdate="CASCADE", ondelete="RESTRICT", nullable=False)
+#     Photo: Mapped[bytes] = mapped_column(LargeBinary, nullable=True)
+#     # use this object instead? Photo = models.ImageField(upload_to='MatlImg/',height_field='height',width_field='width')
+#     height: Mapped[int] = mapped_column(Integer, nullable=False)
+#     width: Mapped[int] = mapped_column(Integer, nullable=False)
+#     Notes : Mapped[str] = mapped_column(String(250), nullable=False, default='')
+    
+# class MfrPNtoMaterial(cAppModelBase):
+
+#     __tablename__ = PUT_THE_TABLE_NAME_HERE
+
+#     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+#     MfrPN = models.CharField(max_length=250, null=False)
+#     Manufacturer = models.CharField(max_length=250, null=True, blank=True)
+#     Material = models.ForeignKey(MaterialList, on_delete=models.CASCADE)
+#     Notes = models.CharField(max_length=250, null=True, blank=True)
+
+#     class Meta:
+#         constraints = [
+#                 models.UniqueConstraint(fields=['MfrPN'],name="wics_mfrpntomaterial_mfrpn_unq"),
+#             ]
+#         indexes = [
+#             models.Index(fields=['Manufacturer']),
+#         ]
+
+
 #TODO later
 # class WICSPermissions(cAppModelBase):
 #     class Meta:
@@ -461,4 +465,3 @@ class SAPPlants_org(cAppModelBase):
 
 cAppModelBase.metadata.create_all(app_Session().get_bind())
 # Ensure that the tables are created when the module is imported
-
