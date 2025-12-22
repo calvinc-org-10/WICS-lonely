@@ -3,6 +3,7 @@ code that's being auditioned
 """
 from typing import (Any, )
 from datetime import (date, )
+import random
 
 from PySide6.QtCore import (
     Slot, Signal,
@@ -18,10 +19,11 @@ from PySide6.QtWidgets import (
     QHBoxLayout, QVBoxLayout, QFileDialog,
     )
 
-from sqlalchemy import select, and_, or_, literal_column
+from sqlalchemy import select, and_, or_, literal_column, literal
 from sqlalchemy.orm import aliased
 
 from calvincTools.utils import (
+    clearLayout,
     Excelfile_fromqs, 
 )
 
@@ -191,14 +193,21 @@ class  rptCountSummary(QWidget):
         
         wdgtCountDate = QWidget()
         layoutCountDate = QHBoxLayout(wdgtCountDate)
-        lblCountDate = QLabel("Count Date: N/A")
         self.clndrCountDate = QCalendarWidget()
+        lblCountDate = QLabel("Count Date:"+self.clndrCountDate.selectedDate().toString("yyyy-MM-dd"))
         self.clndrCountDate.setGridVisible(True)
         self.clndrCountDate.setMinimumDate(QDate(2000,1,1))
         self.clndrCountDate.setMaximumDate(QDate(2199,12,31))
+        self.clndrCountDate.selectionChanged.connect(
+            lambda: lblCountDate.setText("Count Date: "+self.clndrCountDate.selectedDate().toString("yyyy-MM-dd"))
+            )
+        self.clndrCountDate.selectionChanged.connect(self.buildReport)
         layoutCountDate.addWidget(lblCountDate)
         layoutCountDate.addWidget(self.clndrCountDate)
+        myLayout.addWidget(wdgtCountDate)
 
+        self.lblSAPDate = QLabel("SAP Data Date: N/A")
+        myLayout.addWidget(self.lblSAPDate)
 
         wdgtMainArea = QWidget()
         self.layoutMainArea = QVBoxLayout(wdgtMainArea)
@@ -208,36 +217,12 @@ class  rptCountSummary(QWidget):
         myLayout.addWidget(wdgtScrollArea)
 
         self.Excel_qdict = []
-
-        # statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-        #     UploadSAPResults.errState == 'nRowsTotal'
-        # )
-        # nRowsRead = statusVal[0].rowNum - 1 if statusVal else 0     # -1 because header doesn't count
-        # statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-        #     UploadSAPResults.errState == 'nRowsAdded'
-        # )
-        # nRowsAdded = statusVal[0].rowNum if statusVal else 0
-        # statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-        #     UploadSAPResults.errState == 'nRowsErrors'
-        # )
-        # nRowsErrors = statusVal[0].rowNum if statusVal else 0
-        # statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-        #     UploadSAPResults.errState == 'nRowsIgnored'
-        # )
-        # nRowsNoMaterial = statusVal[0].rowNum if statusVal else 0
         
-        # UplResults = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-        #     UploadSAPResults.errState.notin_(['nRowsAdded','nRowsTotal','nRowsErrors','nRowsIgnored'])
-        # )
-        # lblSummary = QLabel(f"Upload Summary: {nRowsRead} rows read, {nRowsAdded} rows added, {nRowsErrors} rows with errors, {nRowsNoMaterial} rows ignored (no material).")
-        # layoutMainArea.addWidget(lblSummary)
-        
-        # for res in UplResults:
-        #     rstr = f"{res.errState}: {res.errmsg}" if 'error' in res.errState else f"Count Record {res.errmsg} added"
-        #     lblrslt = QLabel(rstr)
-        #     layoutMainArea.addWidget(lblrslt)
+        Rptvariation = None  # or 'REQ' for requested only - implement later
+        self.buildReport(Rptvariation=Rptvariation)
     # __init__
-    
+
+    @Slot()    
     def buildReport(self, Rptvariation = None):
         """
         Build the report for the selected date
@@ -267,9 +252,11 @@ class  rptCountSummary(QWidget):
                 ac.c.Notes.label("ac_Notes"),
                 mtl.id.label("matl_id"),
                 mtl.org_id,
-                mtl.OrgName,
-                mtl.Material_org.label("Matl_PartNum"),
-                mtl.PartType.label("PartType"),
+                # mtl.OrgName,
+                literal("(SELECT name FROM organizations WHERE organizations.id = "+str(mtl.org_id)+")").label("OrgName"),
+                # mtl.Material_org.label("Matl_PartNum"),
+                literal("COMBINED ORG+GPN? figure it out").label("Matl_PartNum"),
+                mtl.PartType_id.label("PartType"),  #TODO: join to PartTypes to get the name
                 mtl.Description,
                 mtl.TypicalContainerQty,
                 mtl.TypicalPalletQty,
@@ -462,15 +449,124 @@ class  rptCountSummary(QWidget):
             'OK': 99.0,
             }
         
-        ExcelFileNamePrefix = f"Count_Summary_{countDate.isoformat()}"
+        random_hex = f"{random.randint(0x00, 0xff):02x}"
+        ExcelFileNamePrefix = f"Count_Summary_{countDate.isoformat()}_{random_hex}"
         ExcelFileName = Excelfile_fromqs(
             self.Excel_qdict,
             ExcelFileNamePrefix,
+            returnFileName=True
             )    
         
-        self.displayReport(SummaryReport, AccuracyCutoff, ExcelFileName)
+        self.displayReport(
+            Rptvariation,
+            CountDate=countDate,
+            SAPDate=SAP_SOH['SAPDate'],
+            AccuracyCutoff=AccuracyCutoff, 
+            SummaryReport=SummaryReport,
+            ExcelFileName=ExcelFileName
+        )
     # buildReport
-    
+
+    def displayReport(
+        self, 
+        variation, 
+        CountDate,
+        SAPDate,
+        AccuracyCutoff,
+        SummaryReport,
+        ExcelFileName
+        ):
+        """
+        display the report using the information passed in
+        In the Django world, this was done by templt = 'rpt_CountSummary.html'\
+        using 
+        cntext = {
+            'variation': variation,
+            'CountDate': CountDate,
+            'SAPDate': SAPDate,
+            'AccuracyCutoff': AccuracyCutoff,
+            'SummaryReport': SummaryReport,
+            'ExcelFileName': ExcelFileName,
+        }
+        """
+        # for now, just print to console
+        outputMedium = self.layoutMainArea
+
+        clearLayout(outputMedium)        # clear any existing widgets
+        self.lblSAPDate.setText("SAP Data Date: "+ (SAPDate.isoformat() if SAPDate else "N/A"))
+        
+        prevValues = {}
+        forloop_first_rptSection = True
+        for rptSection in SummaryReport:
+            # has the organization changed?
+            if rptSection['org'] != prevValues.get('rptSection-org'):
+                if not forloop_first_rptSection:
+                    # add a spacer between organizations
+                    outputMedium.addWidget(QLabel(" "))   # blank line #TODO: better spacer - mebbe a horizontal line?
+                # end if not forloop_first
+                lineToAdd = "Counts"
+                lineToAdd += " Requested" if variation=='REQ' else " Scheduled and Done"
+                lineToAdd += f" Organization: {rptSection['org']}"
+                outputMedium.addWidget(QLabel(lineToAdd))
+                
+                prevValues['rptSection-org'] = rptSection['org']
+            # end if org changed
+
+            for outputline in rptSection['outputrows']:
+                if outputline['Material_id'] != prevValues['Material-id']:
+                    wdgtToAdd = QWidget()
+                    layoutL = QHBoxLayout(wdgtToAdd)
+                    #TODO: better formatting here
+                    layoutL.addWidget(QLabel("Count Date"))
+                    layoutL.addWidget(QLabel("Material"))
+                    layoutL.addWidget(QLabel("Counter"))
+                    layoutL.addWidget(QLabel("LOCATION"))
+                    layoutL.addWidget(QLabel("PKG ID/Desc"))
+                    layoutL.addWidget(QLabel("TAG QTY"))
+                    outputMedium.addWidget(wdgtToAdd)
+                # endif material changed
+                    
+                if outputline['type'] == 'Detail':
+                    wdgtToAdd = QWidget()
+                    layoutL = QHBoxLayout(wdgtToAdd)
+                    #TODO: better formatting here
+                    layoutL.addWidget(QLabel(f"{CountDate:%m/%d}"))
+                    layoutL.addWidget(QLabel(f"{outputline['Material']}"))
+                    layoutL.addWidget(QLabel(f"{outputline['ActCounter']}"))
+                    layoutL.addWidget(QLabel(f"{outputline['LOCATION']}"))
+                    layoutL.addWidget(QLabel(f"{outputline['PKGID']}"))
+                    layoutL.addWidget(QLabel(f"{outputline['TAGQTY']}"))
+                    outputMedium.addWidget(wdgtToAdd)
+                    
+                    if outputline['ActCountNotes']:
+                        wdgtToAdd = QLabel(f"   Count Notes: {outputline['ActCountNotes']}")
+                        outputMedium.addWidget(wdgtToAdd)
+                    wdgtToAdd = QLabel(f"Actual Count: {outputline['CTD_QTY_Expr']} = {outputline['CTD_QTY_Eval']}")
+                    
+                    wdgtToAdd = QLabel("")
+                    if outputline['PossNotRec']:
+                        wdgtToAdd.setText(wdgtToAdd.text() + " | Possibly Not Received |")
+                    if outputline['MovDurCt']:
+                        wdgtToAdd.setText(wdgtToAdd.text() + " | Movement During Count |")
+                    outputMedium.addWidget(wdgtToAdd)
+                    
+                elif outputline['type'] == 'Summary':
+                    lblSummary = QLabel(
+                        f"Material: {outputline['Material']} | "
+                        f"Counted Total: {outputline['CountTotal']} | "
+                        f"SAP Total: {outputline['SAPTotal']} | "
+                        f"Diff: {outputline['Diff']} | "
+                        f"Accuracy: {outputline['Accuracy']:.2f}%"
+                    )
+                    outputMedium.addWidget(lblSummary)
+                    #TODO: better formatting here, print Scheduled Counter and Requestor info too
+                # end if outputline type
+
+                prevValues['Material-id'] = outputline['Material_id']
+            # end for outputline in rptSection['outputrows']
+            
+            forloop_first_rptSection = False
+        # end for rptSection
 # ShowUpdateMatlListfromSAPForm
 
 # read the last SAP list before for_date into a list of SAP_SOHRecs
@@ -499,7 +595,7 @@ def fnSAPList(for_date = date.today(), matl = None) -> dict:
     
     SAPLatest = Repository(get_app_sessionmaker(), SAP_SOHRecs).get_all(
         SAP_SOHRecs.uploaded_at == LatestSAPDate, 
-        order_by=[SAP_SOHRecs.Material.org, SAP_SOHRecs.Material.Material, SAP_SOHRecs.StorageLocation],
+        order_by=[SAP_SOHRecs.org_id, SAP_SOHRecs.MaterialPartNum, SAP_SOHRecs.StorageLocation],
         )
     
     SList = {'reqDate': for_date, 'SAPDate': LatestSAPDate, 'SAPTable':[]}
