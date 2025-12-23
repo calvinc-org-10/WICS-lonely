@@ -54,9 +54,10 @@ def CreateOutputRows(raw_qs, SAP_SOH, Excel_qdict, Eval_CTDQTY=True):
         outputline = dict()
         outputline['type'] = 'Summary'
         outputline['SAPNum'] = []
-        for SAProw in SAP_SOH['SAPTable'].filter(Material_id=lastrow['Material_id']):
-            outputline['SAPNum'].append((SAProw.StorageLocation, SAProw.Amount, SAProw.BaseUnitofMeasure))
-            SAPTot += SAProw.Amount*SAProw.mult
+        for SAProw in SAP_SOH['SAPTable']:
+            if SAProw.Material_id == lastrow['Material_id']:
+                outputline['SAPNum'].append((SAProw.StorageLocation, SAProw.Amount, SAProw.BaseUnitofMeasure))
+                SAPTot += SAProw.Amount*SAProw.mult
         outputline['TypicalContainerQty'] = lastrow['TypicalContainerQty']
         outputline['TypicalPalletQty'] = lastrow['TypicalPalletQty']
         outputline['OrgName'] = lastrow['OrgName']
@@ -194,8 +195,9 @@ class  rptCountSummary(QWidget):
         wdgtCountDate = QWidget()
         layoutCountDate = QHBoxLayout(wdgtCountDate)
         self.clndrCountDate = QCalendarWidget()
-        lblCountDate = QLabel("Count Date:"+self.clndrCountDate.selectedDate().toString("yyyy-MM-dd"))
+        lblCountDate = QLabel("Count Date: "+self.clndrCountDate.selectedDate().toString("yyyy-MM-dd"+"  "))
         self.clndrCountDate.setGridVisible(True)
+        self.clndrCountDate.setVerticalHeaderFormat(QCalendarWidget.VerticalHeaderFormat.NoVerticalHeader)
         self.clndrCountDate.setMinimumDate(QDate(2000,1,1))
         self.clndrCountDate.setMaximumDate(QDate(2199,12,31))
         self.clndrCountDate.selectionChanged.connect(
@@ -228,39 +230,42 @@ class  rptCountSummary(QWidget):
         Build the report for the selected date
         """
         def buildFieldList(ac, cs, mtl) -> list[Any]:
+            acCols = ac.c if hasattr(ac,"c") else ac
+            csCols = cs.c if hasattr(cs,"c") else cs
+            mtlCols = mtl.c if hasattr(mtl,"c") else mtl
             fld_list = [
                 literal_column("0").label("id"),
-                cs.id.label("cs_id"),
-                cs.CountDate.label("cs_CountDate"),
-                cs.Counter.label("cs_Counter"),
-                cs.Priority.label("cs_Priority"),
-                cs.ReasonScheduled.label("cs_ReasonScheduled"),
-                cs.Requestor,
-                cs.RequestFilled,
-                cs.Notes.label("cs_Notes"),
-                ac.c.id.label("ac_id"),
-                ac.c.CountDate.label("ac_CountDate"),
-                ac.c.CycCtID.label("ac_CycCtID"),
-                ac.c.Counter.label("ac_Counter"),
-                ac.c.LocationOnly.label("ac_LocationOnly"),
-                ac.c.CTD_QTY_Expr.label("ac_CTD_QTY_Expr"),
-                ac.c.LOCATION.label("ac_LOCATION"),
-                ac.c.PKGID_Desc.label("ac_PKGID_Desc"),
-                ac.c.TAGQTY.label("ac_TAGQTY"),
-                ac.c.FLAG_PossiblyNotRecieved,
-                ac.c.FLAG_MovementDuringCount,
-                ac.c.Notes.label("ac_Notes"),
-                mtl.id.label("matl_id"),
-                mtl.org_id,
+                csCols.id.label("cs_id"),
+                csCols.CountDate.label("cs_CountDate"),
+                csCols.Counter.label("cs_Counter"),
+                csCols.Priority.label("cs_Priority"),
+                csCols.ReasonScheduled.label("cs_ReasonScheduled"),
+                csCols.Requestor,
+                csCols.RequestFilled,
+                csCols.Notes.label("cs_Notes"),
+                acCols.id.label("ac_id"),
+                acCols.CountDate.label("ac_CountDate"),
+                acCols.CycCtID.label("ac_CycCtID"),
+                acCols.Counter.label("ac_Counter"),
+                acCols.LocationOnly.label("ac_LocationOnly"),
+                acCols.CTD_QTY_Expr.label("ac_CTD_QTY_Expr"),
+                acCols.LOCATION.label("ac_LOCATION"),
+                acCols.PKGID_Desc.label("ac_PKGID_Desc"),
+                acCols.TAGQTY.label("ac_TAGQTY"),
+                acCols.FLAG_PossiblyNotRecieved,
+                acCols.FLAG_MovementDuringCount,
+                acCols.Notes.label("ac_Notes"),
+                mtlCols.id.label("matl_id"),
+                mtlCols.org_id,
                 # mtl.OrgName,
                 literal("(SELECT name FROM organizations WHERE organizations.id = "+str(mtl.org_id)+")").label("OrgName"),
                 # mtl.Material_org.label("Matl_PartNum"),
                 literal("COMBINED ORG+GPN? figure it out").label("Matl_PartNum"),
-                mtl.PartType_id.label("PartType"),  #TODO: join to PartTypes to get the name
-                mtl.Description,
-                mtl.TypicalContainerQty,
-                mtl.TypicalPalletQty,
-                mtl.Notes.label("mtl_Notes"),
+                mtlCols.PartType_id.label("PartType"),  #TODO: join to PartTypes to get the name
+                mtlCols.Description,
+                mtlCols.TypicalContainerQty,
+                mtlCols.TypicalPalletQty,
+                mtlCols.Notes.label("mtl_Notes"),
             ]
             return fld_list
         # buildFieldList
@@ -513,7 +518,7 @@ class  rptCountSummary(QWidget):
             # end if org changed
 
             for outputline in rptSection['outputrows']:
-                if outputline['Material_id'] != prevValues['Material-id']:
+                if outputline['Material_id'] != prevValues.get('Material-id'):
                     wdgtToAdd = QWidget()
                     layoutL = QHBoxLayout(wdgtToAdd)
                     #TODO: better formatting here
