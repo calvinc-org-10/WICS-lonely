@@ -203,7 +203,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
                 'Material Group': 'SAPMaterialGroup', 'Matl Group': 'SAPMaterialGroup',
                 'Manufact.': 'SAPManuf',
                 'MPN': 'SAPMPN',
-                'ABC': 'SAPABC', 'ABC Indicator ': 'SAPABC',
+                'ABC': 'SAPABC', 'ABC Indicator': 'SAPABC',
                 'Price': 'Price', 'Standard price': 'Price',
                 'Price unit': 'PriceUnit', 'per': 'PriceUnit',
                 'Currency':'Currency',
