@@ -1,24 +1,26 @@
-from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
+import re as regex
+from typing import Any
 from datetime import date, datetime
-from app.database import Repository, get_app_session, get_app_sessionmaker
-from app.models import ActualCounts, CountSchedule, MaterialList, SAP_SOHRecs, SAPPlants_org, UploadSAPResults, tmpMaterialListUpdate
-
+from dateutil.parser import parse as dateparse
 
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
 from PySide6.QtWidgets import QBoxLayout, QCheckBox, QGridLayout, QGroupBox, QLabel, QProgressBar, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
 from calvincTools.utils import (
-    cSimpleRecordForm, calvindate, cFileSelectWidget,
+    cSimpleRecordForm, cFileSelectWidget,
     )
-from openpyxl import load_workbook
-from qtawesome import icon
+
 from sqlalchemy import delete, func, insert, literal_column, select, text, update
 
+from openpyxl import load_workbook
+from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
 
-import re as regex
-from typing import Any
+from qtawesome import icon
 
 from mathematical_expressions_parser.eval import evaluate
+
+from app.database import Repository, get_app_session, get_app_sessionmaker
+from app.models import ActualCounts, CountSchedule, MaterialList, SAP_SOHRecs, SAPPlants_org, UploadSAPResults, tmpMaterialListUpdate
 
 
 
@@ -803,15 +805,15 @@ class UploadActCountSprsht(cSimpleRecordForm):
         cleanval = None
 
         if   fld == 'CountDate':
-            if isinstance(val,(calvindate, date, datetime)):
+            if isinstance(val,(date, datetime)):
                 usefld = True
-                cleanval = calvindate(val).as_datetime()
+                cleanval = val.date() if isinstance(val,datetime) else val
             elif isinstance(val,int):
                 usefld = True
                 cleanval = from_excel(val,CountSprshtDateEpoch)
             else:
                 try:
-                    cleanval = calvindate(val).as_datetime()
+                    cleanval = dateparse(val).date()
                     usefld = True
                 except ValueError:
                     usefld = False
