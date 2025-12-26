@@ -15,7 +15,7 @@ from PySide6.QtGui import (
 from PySide6.QtWidgets import (
     QWidget,
     QPushButton, QLabel, QCheckBox, QCalendarWidget,
-    QGroupBox, QScrollArea,
+    QGroupBox, QScrollArea, QFrame,
     QHBoxLayout, QVBoxLayout, QFileDialog,
     )
 
@@ -333,6 +333,7 @@ class  rptCountSummary(QWidget):
                 ttl = 'Requested and Counted'            
             SummaryReport.append({
                         'org':org,
+                        'OrgName':orgname,
                         'Title':ttl,
                         'outputrows': CreateOutputRows(partA_qs, SAP_SOH, self.Excel_qdict),
                         })
@@ -385,6 +386,7 @@ class  rptCountSummary(QWidget):
             ttl = 'UnScheduled'
             SummaryReport.append({
                         'org':org,
+                        'OrgName':orgname,
                         'Title':ttl,
                         'outputrows': CreateOutputRows(partB_qs, SAP_SOH, self.Excel_qdict),
                         })
@@ -445,6 +447,7 @@ class  rptCountSummary(QWidget):
                 ttl = 'Requested but Not Counted'            
             SummaryReport.append({
                         'org':org,
+                        'OrgName':orgname,
                         'Title':ttl,
                         'outputrows': CreateOutputRows(partC_qs, SAP_SOH, self.Excel_qdict),
                         })
@@ -502,6 +505,18 @@ class  rptCountSummary(QWidget):
         clearLayout(outputMedium)        # clear any existing widgets
         self.lblSAPDate.setText("SAP Data Date: "+ (SAPDate.isoformat() if SAPDate else "N/A"))
         
+        #temporary until better formatting is done
+        outputMedium.addWidget(QLabel(f"Accuracy Cutoff: {AccuracyCutoff}"))
+        outputMedium.addWidget(QLabel(f"Excel File: {ExcelFileName}"))
+        outputMedium.addWidget(QLabel(" "))   # blank line
+        horizontalLine = QFrame()
+        horizontalLine.setFrameShape(QFrame.Shape.HLine)
+        horizontalLine.setFrameShadow(QFrame.Shadow.Sunken)
+        horizontalLine.setStyleSheet("QFrame { border: 3px solid black; }")
+        outputMedium.addWidget(horizontalLine)    # horizontal line
+        outputMedium.addWidget(QLabel(f"Count Summary Report for Count Date: {CountDate:%Y-%m-%d}"))
+        outputMedium.addWidget(QLabel(" "))   # blank line
+        
         prevValues = {}
         forloop_first_rptSection = True
         for rptSection in SummaryReport:
@@ -511,13 +526,17 @@ class  rptCountSummary(QWidget):
                     # add a spacer between organizations
                     outputMedium.addWidget(QLabel(" "))   # blank line #TODO: better spacer - mebbe a horizontal line?
                 # end if not forloop_first
-                lineToAdd = "Counts"
-                lineToAdd += " Requested" if variation=='REQ' else " Scheduled and Done"
-                lineToAdd += f" Organization: {rptSection['org']}"
+                lineToAdd = ""
+                lineToAdd += f" Organization: {rptSection['OrgName']}"
                 outputMedium.addWidget(QLabel(lineToAdd))
                 
                 prevValues['rptSection-org'] = rptSection['org']
             # end if org changed
+
+            # Header for this section
+            lineToAdd = "Counts"
+            lineToAdd += f" {rptSection['Title']}"
+            outputMedium.addWidget(QLabel(lineToAdd))
 
             for outputline in rptSection['outputrows']:
                 if outputline['Material_id'] != prevValues.get('Material-id'):
