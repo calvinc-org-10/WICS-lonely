@@ -229,7 +229,7 @@ class  rptCountSummary(QWidget):
         """
         Build the report for the selected date
         """
-        def buildFieldList(ac, cs, mtl) -> list[Any]:
+        def buildFieldList(ac, cs, mtl, orgname) -> list[Any]:
             acCols = ac.c if hasattr(ac,"c") else ac
             csCols = cs.c if hasattr(cs,"c") else cs
             mtlCols = mtl.c if hasattr(mtl,"c") else mtl
@@ -257,10 +257,10 @@ class  rptCountSummary(QWidget):
                 acCols.Notes.label("ac_Notes"),
                 mtlCols.id.label("matl_id"),
                 mtlCols.org_id,
-                # mtl.OrgName,
-                literal("(SELECT name FROM organizations WHERE organizations.id = "+str(mtl.org_id)+")").label("OrgName"),
+                # literal("(SELECT name FROM organizations WHERE organizations.id = "+str(mtl.org_id)+")").label("OrgName"),
+                literal(orgname).label("OrgName"),
                 # mtl.Material_org.label("Matl_PartNum"),
-                literal("COMBINED ORG+GPN? figure it out").label("Matl_PartNum"),
+                (literal(orgname)+literal("-")+mtlCols.Material).label("Matl_PartNum"),
                 mtlCols.PartType_id.label("PartType"),  #TODO: join to PartTypes to get the name
                 mtlCols.Description,
                 mtlCols.TypicalContainerQty,
@@ -276,6 +276,8 @@ class  rptCountSummary(QWidget):
         SummaryReport = []
 
         for org in [rec.id for rec in Repository(get_app_sessionmaker(), Organizations).get_all()]:
+            orgname = Repository(get_app_sessionmaker(), Organizations).get_by_id(org).orgname      # type: ignore
+            
             ###### PART A: Records Scheduled and Counted ######        
             # 1. Define Aliases
             cs = aliased(CountSchedule, name='cs')
@@ -289,7 +291,7 @@ class  rptCountSummary(QWidget):
             )
 
             # 3. Define the Field List with exact Labels
-            fld_list = buildFieldList(ac, cs, mtl)
+            fld_list = buildFieldList(ac, cs, mtl, orgname)
 
             # 4. Build the Query
             stmt = (
@@ -345,7 +347,7 @@ class  rptCountSummary(QWidget):
             # no step 2 since we are using ac directly
             
             # 3. Define the Field List with exact Labels
-            fld_list = buildFieldList(ac, cs, mtl)
+            fld_list = buildFieldList(ac, cs, mtl, orgname)
 
             # 4. Build the Query
             stmt = (
@@ -400,7 +402,7 @@ class  rptCountSummary(QWidget):
             )
             
             # 3. Define the Field List with exact Labels
-            fld_list = buildFieldList(ac, cs, mtl)
+            fld_list = buildFieldList(ac, cs, mtl, orgname)
 
             # 4. Build the Query
             stmt = (
@@ -547,6 +549,7 @@ class  rptCountSummary(QWidget):
                         wdgtToAdd = QLabel(f"   Count Notes: {outputline['ActCountNotes']}")
                         outputMedium.addWidget(wdgtToAdd)
                     wdgtToAdd = QLabel(f"Actual Count: {outputline['CTD_QTY_Expr']} = {outputline['CTD_QTY_Eval']}")
+                    outputMedium.addWidget(wdgtToAdd)
                     
                     wdgtToAdd = QLabel("")
                     if outputline['PossNotRec']:

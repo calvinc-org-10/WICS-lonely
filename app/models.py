@@ -63,6 +63,13 @@ class Organizations(cAppModelBase):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     orgname: Mapped[str] = mapped_column(String(250), unique=True, nullable=False, default='')
 
+    # The list of all materials linked to this organization
+    materials: Mapped[list["MaterialList"]] = relationship(
+        "MaterialList", 
+        back_populates="organization",
+        cascade="all, delete-orphan" # Optional: deletes materials if the org is deleted
+    )
+    
     def __repr__(self) -> str:
         return f'<Organizations(id={self.id}, orgname="{self.orgname}")>'
 
@@ -133,10 +140,20 @@ class MaterialList(cAppModelBase):
     TypicalPalletQty : Mapped[str] = mapped_column(String(100), nullable=True, default=None)
     Notes : Mapped[str] = mapped_column(String(250), nullable=False, default='')
 
+    # This allows self.organization to pull the actual Organizations object
+    organization: Mapped["Organizations"] = relationship("Organizations", back_populates="materials", lazy="joined")
+    
     __table_args__ = (
         UniqueConstraint('org_id', 'Material'),
         Index('ix_materiallist_material', Material),
         )
+
+    @property
+    def tupleOrgMaterial(self) -> tuple[str | None, str]:
+        """Returns (Organization Name, Material Name)"""
+        # Since org_id is nullable, we check if organization exists first
+        org_name = self.organization.orgname if self.organization else None
+        return (org_name, self.Material)
     
     def __repr__(self) -> str:
         return f'<MaterialList(id={self.id}, Material="{self.Material}", org_id={self.org_id})>'
@@ -147,7 +164,7 @@ class MaterialList(cAppModelBase):
         #     # return str(self.Material) + ' (' + str(self.org) + ')'
         #     return f'{self.Material} ({self.org})'
         # else:
-        return f'{self.Material}'
+        return f'{self.tupleOrgMaterial[0]}={self.Material}'
 class tmpMaterialListUpdate(cAppModelBase):
 
     __tablename__ = 'tmpmateriallistupdate'
