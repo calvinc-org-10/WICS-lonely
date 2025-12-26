@@ -459,13 +459,14 @@ class  rptCountSummary(QWidget):
             'OK': 99.0,
             }
         
-        random_hex = f"{random.randint(0x00, 0xff):02x}"
-        ExcelFileNamePrefix = f"Count_Summary_{countDate.isoformat()}_{random_hex}"
+        ExcelFileDir = "D:/tmp0/"   # TODO: make a parameter later
+        ExcelFileNameSuffix = f"{random.randint(0x00, 0xff):02x}"
+        _ExcelFileName = f"{ExcelFileDir}Count_Summary_{countDate.isoformat()}_{ExcelFileNameSuffix}"
         ExcelFileName = Excelfile_fromqs(
             self.Excel_qdict,
-            ExcelFileNamePrefix,
+            _ExcelFileName,
             returnFileName=True
-            )    
+            )
         
         self.displayReport(
             Rptvariation,
