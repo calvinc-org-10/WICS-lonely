@@ -24,7 +24,7 @@ from sqlalchemy.orm import aliased
 
 from calvincTools.utils import (
     clearLayout,
-    Excelfile_fromqs, 
+    Excelfile_fromqs, ExcelWorkbook_fileext,
 )
 
 from mathematical_expressions_parser.eval import evaluate
@@ -459,9 +459,18 @@ class  rptCountSummary(QWidget):
             'OK': 99.0,
             }
         
+        import os
         ExcelFileDir = "D:/tmp0/"   # TODO: make a parameter later
-        ExcelFileNameSuffix = f"{random.randint(0x00, 0xff):02x}"
-        _ExcelFileName = f"{ExcelFileDir}Count_Summary_{countDate.isoformat()}_{ExcelFileNameSuffix}"
+        k = 0
+        while True:
+            _ExcelFileNameSuffix = f"{random.randint(k, 0xff):02x}"
+            _ExcelFileName = f"{ExcelFileDir}Count_Summary_{countDate.isoformat()}_{_ExcelFileNameSuffix}"
+            if not os.path.exists(_ExcelFileName + ExcelWorkbook_fileext):
+                break
+            k += 1
+            if k>0xffff:
+                raise FileExistsError("Cannot find unique Excel file name for Count Summary report")
+        # end while
         ExcelFileName = Excelfile_fromqs(
             self.Excel_qdict,
             _ExcelFileName,
@@ -500,6 +509,14 @@ class  rptCountSummary(QWidget):
             'ExcelFileName': ExcelFileName,
         }
         """
+        def horizontalLine()->QFrame:
+            horizontalLine = QFrame()
+            horizontalLine.setFrameShape(QFrame.Shape.HLine)
+            horizontalLine.setFrameShadow(QFrame.Shadow.Sunken)
+            horizontalLine.setStyleSheet("QFrame { border: 3px solid black; }")
+            return horizontalLine
+        # horizontalLine
+
         # for now, just print to console
         outputMedium = self.layoutMainArea
 
@@ -509,31 +526,41 @@ class  rptCountSummary(QWidget):
         #temporary until better formatting is done
         outputMedium.addWidget(QLabel(f"Accuracy Cutoff: {AccuracyCutoff}"))
         outputMedium.addWidget(QLabel(f"Excel File: {ExcelFileName}"))
-        outputMedium.addWidget(QLabel(" "))   # blank line
-        horizontalLine = QFrame()
-        horizontalLine.setFrameShape(QFrame.Shape.HLine)
-        horizontalLine.setFrameShadow(QFrame.Shadow.Sunken)
-        horizontalLine.setStyleSheet("QFrame { border: 3px solid black; }")
-        outputMedium.addWidget(horizontalLine)    # horizontal line
+        outputMedium.addWidget(horizontalLine())    # horizontal line
         outputMedium.addWidget(QLabel(f"Count Summary Report for Count Date: {CountDate:%Y-%m-%d}"))
+        outputMedium.addWidget(QLabel(self.lblSAPDate.text()))
         outputMedium.addWidget(QLabel(" "))   # blank line
         
         prevValues = {}
         forloop_first_rptSection = True
+        org_has_data = False
         for rptSection in SummaryReport:
             # has the organization changed?
             if rptSection['org'] != prevValues.get('rptSection-org'):
                 if not forloop_first_rptSection:
+                    # did previous section have data?
+                    if not org_has_data:
+                        outputMedium.addWidget(QLabel("    NO COUNTS"))
                     # add a spacer between organizations
-                    outputMedium.addWidget(QLabel(" "))   # blank line #TODO: better spacer - mebbe a horizontal line?
+                    outputMedium.addWidget(horizontalLine())
                 # end if not forloop_first
                 lineToAdd = ""
                 lineToAdd += f" Organization: {rptSection['OrgName']}"
                 outputMedium.addWidget(QLabel(lineToAdd))
+                org_has_data = False
                 
                 prevValues['rptSection-org'] = rptSection['org']
             # end if org changed
 
+            if not rptSection['outputrows']:
+                # no data for this section
+                # lineToAdd = f"No data for section: {rptSection['Title']}"
+                # outputMedium.addWidget(QLabel(lineToAdd))
+                forloop_first_rptSection = False
+                continue
+            #end if no outputrows
+            org_has_data = True
+            
             # Header for this section
             lineToAdd = "Counts"
             lineToAdd += f" {rptSection['Title']}"
@@ -593,8 +620,16 @@ class  rptCountSummary(QWidget):
                 prevValues['Material-id'] = outputline['Material_id']
             # end for outputline in rptSection['outputrows']
             
+            outputMedium.addWidget(horizontalLine())
             forloop_first_rptSection = False
         # end for rptSection
+        
+        # footer for last section
+        # did previous section have data?
+        if not org_has_data:
+            outputMedium.addWidget(QLabel("    NO COUNTS"))
+        # add a spacer between organizations
+        outputMedium.addWidget(horizontalLine())
 # ShowUpdateMatlListfromSAPForm
 
 # read the last SAP list before for_date into a list of SAP_SOHRecs
@@ -648,3 +683,4 @@ def fnSAPList(for_date = date.today(), matl = None) -> dict:
     SList['SAPTable'] = STable
 
     return SList
+

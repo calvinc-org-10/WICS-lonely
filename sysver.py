@@ -1,8 +1,8 @@
 _appname='WICS-lonely'
 _base_ver_major=4
 _base_ver_minor=0
-_base_ver_patch='0'
-_ver_date='2025-11-15'
+_base_ver_patch=1
+_ver_date='2025-12-27'
 _base_ver = f'{_base_ver_major}.{_base_ver_minor}.{_base_ver_patch}'
 sysver = {
     'DEV': f'DEV{_base_ver}', 
@@ -11,6 +11,10 @@ sysver = {
     } 
 
 # Changelog:
+# Version - Date - Description
+# 4.0.1 - 2025-12-27 I APOLOGIZE FOR NOT UPDATING VERSIONS PROPERLY
+#       Bug fix - improved Excel file name handling in _newcode.py
+#       More improvements to CountSummary report generation in _newcode.py
 # 4.0.0 - 2025-11-15 Initial release of WICS Standalone
 # 3.9.3 - 2024-09-15 Added dbUsing to various places to support demo vs prod db
 # 3.9.2 - 2024-08-15 Bug fix - corrected demo vs prod db usage in views.py
