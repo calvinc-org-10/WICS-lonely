@@ -3,13 +3,14 @@ code that's being auditioned
 """
 from typing import (Any, )
 from datetime import (date, )
-import random
 
 from PySide6.QtCore import (
+    Qt, QRect, QPoint,
     Slot, Signal,
     QDate, 
     )
 from PySide6.QtGui import (
+    QPainter, QRegion,
     QDragEnterEvent, QDropEvent,
     )
 from PySide6.QtWidgets import (
@@ -18,6 +19,11 @@ from PySide6.QtWidgets import (
     QGroupBox, QScrollArea, QFrame,
     QHBoxLayout, QVBoxLayout, QFileDialog,
     )
+from PySide6.QtPrintSupport import (
+    QPrinter, 
+    QPrintDialog, QPrintPreviewDialog,
+    )
+
 
 from sqlalchemy import select, and_, or_, literal_column, literal
 from sqlalchemy.orm import aliased
@@ -187,6 +193,7 @@ class  rptCountSummary(QWidget):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
+        # TODO: be consistent - move this to _buildFormLayout, _buildPages, _placeFields, etc.
         self.setWindowTitle(self._formname)
         myLayout = QVBoxLayout(self)
         lblResultsTitle = QLabel(self._formname)
@@ -207,6 +214,10 @@ class  rptCountSummary(QWidget):
         layoutCountDate.addWidget(lblCountDate)
         layoutCountDate.addWidget(self.clndrCountDate)
         myLayout.addWidget(wdgtCountDate)
+        
+        btnPrintPreview = QPushButton("Print Preview")
+        btnPrintPreview.clicked.connect(self.handlePrintPreview)    
+        myLayout.addWidget(btnPrintPreview)
 
         self.lblSAPDate = QLabel("SAP Data Date: N/A")
         myLayout.addWidget(self.lblSAPDate)
@@ -463,7 +474,7 @@ class  rptCountSummary(QWidget):
         ExcelFileDir = "D:/tmp0/"   # TODO: make a parameter later
         k = 0
         while True:
-            _ExcelFileNameSuffix = f"{random.randint(k, 0xff):02x}"
+            _ExcelFileNameSuffix = f"{k:02x}"
             _ExcelFileName = f"{ExcelFileDir}Count_Summary_{countDate.isoformat()}_{_ExcelFileNameSuffix}"
             if not os.path.exists(_ExcelFileName + ExcelWorkbook_fileext):
                 break
@@ -630,6 +641,19 @@ class  rptCountSummary(QWidget):
             outputMedium.addWidget(QLabel("    NO COUNTS"))
         # add a spacer between organizations
         outputMedium.addWidget(horizontalLine())
+    # displayReport
+
+    @Slot()
+    def handlePrintPreview(self):
+        """
+        Handle print preview button click
+        """
+        widgParent = self.layoutMainArea.parent()
+        assert isinstance(widgParent, QWidget), "layoutMainArea parent is not a QWidget"
+        manager = cPrintManager(widgParent)
+        manager.open_preview()
+    # handlePrintPreview
+
 # ShowUpdateMatlListfromSAPForm
 
 # read the last SAP list before for_date into a list of SAP_SOHRecs
@@ -683,4 +707,92 @@ def fnSAPList(for_date = date.today(), matl = None) -> dict:
     SList['SAPTable'] = STable
 
     return SList
+# fnSAPList
 
+# Printing a long QWidget that may span multiple pages with preview
+# move to calvincTools.printing later
+class cPrintManager:
+    def __init__(self, target_widget:QWidget):
+        self.target_widget = target_widget
+
+    def open_preview(self):
+        """Opens the interactive preview window."""
+        printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+        preview = QPrintPreviewDialog(printer, self.target_widget)
+        preview.paintRequested.connect(self.handle_print)
+        preview.exec()
+    # open_preview
+
+    def export_pdf(self):
+        """Directly exports the widget to a PDF file without a dialog."""
+        file_path, _ = QFileDialog.getSaveFileName(
+            self.target_widget, "Export PDF", "", "PDF Files (*.pdf)"
+        )
+        
+        if file_path:
+            printer = QPrinter(QPrinter.PrinterMode.HighResolution)
+            printer.setOutputFormat(QPrinter.OutputFormat.PdfFormat)
+            printer.setOutputFileName(file_path)
+            self.handle_print(printer)
+    # export_pdf
+
+    def handle_print(self, printer: QPrinter):
+        """The core rendering engine used by both Preview and PDF export."""
+        
+        #####################################
+        ## CURRENT PROBLEM: only the first page is rendered correctly.
+        #####################################
+        
+        painter = QPainter()
+        if not painter.begin(printer):
+            return
+
+        # 1. Scaling Logic (Fit to Width)
+        page_rect = printer.pageRect(QPrinter.Unit.DevicePixel)
+        widget_rect = self.target_widget.rect()
+        
+        scale = page_rect.width() / widget_rect.width()
+        painter.scale(scale, scale)
+
+        # 2. Pagination Logic
+        scaled_page_height = page_rect.height() / scale
+        total_height = widget_rect.height()
+        current_y = 0
+        
+        while current_y < total_height:
+            painter.save()
+            
+            # Create a 'slice' for the current page
+            clip_rect = QRect(0, int(current_y), 
+                              widget_rect.width(), int(scaled_page_height))
+            
+            # Shift the coordinate system so the 'slice' starts at the top of the page
+            painter.translate(0, -current_y)
+            
+            # Render the slice
+            self.target_widget.render(painter, QPoint(0,0),    # type: ignore
+                                      sourceRegion=QRegion(clip_rect))      # type: ignore
+            
+            painter.restore()
+            current_y += scaled_page_height
+            
+            # Add a new page if there is more widget to draw
+            if current_y < total_height:
+                printer.newPage()
+
+        painter.end()
+
+        # code to review and possibly add page numbers later
+        # # Draw page number (reset scaling temporarily for crisp text)
+        # painter.save()
+        # painter.resetTransform() # Go back to page-pixel coordinates
+        # page_num += 1
+        # painter.drawText(page_rect.width() - 100, page_rect.height() - 50, f"Page {page_num}")
+        # painter.restore()
+        
+    # handle_print
+# PrintManager
+# key to usage - initialize with the target widget, then call open_preview() or export_pdf()
+# # Initialize manager and show preview
+#     manager = PrintManager(window)
+#     manager.open_preview()
