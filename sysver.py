@@ -1,8 +1,8 @@
 _appname='WICS-lonely'
 _base_ver_major=4
 _base_ver_minor=1
-_base_ver_patch=0
-_ver_date='2025-12-27'
+_base_ver_patch=1
+_ver_date='2025-12-28'
 _base_ver = f'{_base_ver_major}.{_base_ver_minor}.{_base_ver_patch}'
 sysver = {
     'DEV': f'DEV{_base_ver}', 
@@ -12,6 +12,10 @@ sysver = {
 
 # Changelog:
 # Version - Date - Description
+# 4.1.1 - 2025-12-28 improved formatting of Count Summary report in _newcode.py
+#       Moved rptCountSummary to forms/ActualCounts.py
+#       Minor tweaks to menuformname_viewMap.py
+#       Moved cPrintManager to calvincTools
 # 4.1.0 - 2025-12-27 I APOLOGIZE FOR NOT UPDATING VERSIONS PROPERLY
 #       Bug fix - improved Excel file name handling in _newcode.py
 #       More improvements to CountSummary report generation in _newcode.py
