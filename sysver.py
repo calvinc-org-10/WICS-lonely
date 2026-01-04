@@ -1,8 +1,8 @@
 _appname='WICS-lonely'
 _base_ver_major=4
-_base_ver_minor=1
-_base_ver_patch=1
-_ver_date='2025-12-28'
+_base_ver_minor=2
+_base_ver_patch=0
+_ver_date='2026-01-03'
 _base_ver = f'{_base_ver_major}.{_base_ver_minor}.{_base_ver_patch}'
 sysver = {
     'DEV': f'DEV{_base_ver}', 
@@ -12,6 +12,11 @@ sysver = {
 
 # Changelog:
 # Version - Date - Description
+# 4.2.1 - plans
+#       2026-01-10 target date
+#       move UploadSAPSOHSprsht to spreadsheet.py
+#       use new calvincTools menu functions
+# 4.2.0 - 2026-01-10 Upload SAP data from MB52 spreadsheet (in _newcode.py)
 # 4.1.1 - 2025-12-28 improved formatting of Count Summary report in _newcode.py
 #       Moved rptCountSummary to forms/ActualCounts.py
 #       Minor tweaks to menuformname_viewMap.py

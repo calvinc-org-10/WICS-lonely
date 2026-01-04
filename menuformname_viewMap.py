@@ -1,4 +1,4 @@
-
+import _newcode
 import app.forms as forms
 # from userprofiles.views import fnWICSuserForm
 
@@ -48,5 +48,5 @@ FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
 FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.PartTypesForm)
 
 
-FormNameToURL_Map['test01'.lower()] = ('', forms.fmsActualCounts.rptCountSummary)
+FormNameToURL_Map['test01'.lower()] = ('', _newcode.UploadSAPSOHSprsht)
 FormNameToURL_Map['test02'.lower()] = ('', None)
