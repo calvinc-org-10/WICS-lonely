@@ -365,3 +365,4 @@ class ShowUploadedSAPResults(QWidget):
             )
         layoutMainArea.addWidget(lblSummary)
     # __init__
+# ShowUploadedSAPResults
