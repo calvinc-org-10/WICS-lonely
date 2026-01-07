@@ -13,6 +13,7 @@ sysver = {
 # Changelog:
 # Version - Date - Description
 # 4.2.1 - plans
+#       redo Count Entry Form and Material Form layouts
 #       2026-01-10 target date
 #       move UploadSAPSOHSprsht to spreadsheet.py
 #       use new calvincTools menu functions

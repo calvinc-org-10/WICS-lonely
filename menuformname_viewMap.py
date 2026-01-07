@@ -23,7 +23,7 @@ FormNameToURL_Map['django-admin'.lower()] = (None, LoadAdmin)
 
 FormNameToURL_Map['frmcountentry'.lower()] = ('CountEntryForm', forms.CountEntryForm)
 FormNameToURL_Map['frmUploadCountEntry'.lower()] = ('UploadActualCountSprsht', forms.spreadsheet.UploadActCountSprsht)
-FormNameToURL_Map['frmcountsummarypreview'.lower()] = ('CountSummaryReport', forms.fmsActualCounts.rptCountSummary)
+FormNameToURL_Map['frmcountsummarypreview'.lower()] = ('CountSummaryReport', forms.fmActualCounts.rptCountSummary)
 FormNameToURL_Map['frmrequestedcountsummary'.lower()] = ('CountSummaryReport-v-init', None)
 FormNameToURL_Map['frmimportsap'.lower()] = ('UploadSAPSprSht', None)
 FormNameToURL_Map['frmmaterial'.lower()] = ('MatlForm', forms.MaterialForm)
