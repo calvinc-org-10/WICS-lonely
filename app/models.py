@@ -164,7 +164,7 @@ class MaterialList(cAppModelBase):
         #     # return str(self.Material) + ' (' + str(self.org) + ')'
         #     return f'{self.Material} ({self.org})'
         # else:
-        return f'{self.tupleOrgMaterial[0]}={self.Material}'
+        return f'{self.tupleOrgMaterial[0]}-{self.Material}'
 class tmpMaterialListUpdate(cAppModelBase):
 
     __tablename__ = 'tmpmateriallistupdate'

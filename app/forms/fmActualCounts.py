@@ -8,17 +8,152 @@ from sqlalchemy.orm import aliased
 
 from mathematical_expressions_parser.eval import evaluate
 from app.database import Repository, app_Session, get_app_session, get_app_sessionmaker
-from app.forms import std_id_def
+from app.forms import (
+    std_id_def,
+    AppchoiceWidgets,
+    )
 from app.models import ActualCounts, CountSchedule, MaterialList, Organizations
 from app.utils import fnSAPList
 
 from calvincTools.utils import (
     ExcelWorkbook_fileext, Excelfile_fromqs, 
-    cSimpleRecordForm, clearLayout,
+    cSimpleRecordForm, cSimpRecSbFmRecord, cSimpleRecordSubForm1, cSimpleRecordSubForm2, cQFmFldWidg,
+    clearLayout,
+    cDataList,
     cPrintManager,
     )
 
 
+class MaterialInfoSubform(cSimpleRecordSubForm2):
+    _ORMmodel = MaterialList
+    _ssnmaker = app_Session
+    _formname = 'Material Information'
+    _parentFK = 'id'   # FK in parent form that links to this subform
+
+    fieldDefs = {
+        'id': std_id_def,
+        'org_id': {'label': 'Organization ID', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,1)},
+        'Material': {'label': 'Material', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,2)},
+        'Description': {'label': 'Description', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,3,1,4)},
+        'PartType_id': {'label': 'Part Type', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (2,1)},
+        'TypicalContainerQty': {'label': 'Typical Container Qty', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (2,2)},
+        'TypicalPalletQty': {'label': 'Typical Pallet Qty', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (2,3)},
+        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'noedit': True, 'readonly': True,  'position': (3,1,1,6)},
+    }
+
+    def _addActionButtons(self, layoutButtons) -> None:
+        # No action buttons in this subform
+        return
+    def _handleActionButton(self, action: str) -> None:
+        # No action buttons in this subform
+        return 
+    
+    def loadFromRecord(self, rec):
+        """
+        Load subrecords for the given parent record.
+        Overridden because we want parent ActualCount.Material_id (NOT id!!) to link to CountSchedule.Material_id
+        
+        Args:
+            rec: The parent record from which to load subrecords.
+        """
+        self.setparentRec(rec)
+        self._childRecs.clear()
+        self._deleted_childRecs.clear()
+
+        ssnmkr = self.ssnmaker()
+        assert ssnmkr is not None, "Sessionmaker must be set before touching the database"
+        modl = self.ORMmodel()
+        assert modl is not None, "ORMmodel must be set before deleting record"
+        pfk = self.parentFK()
+        # prikey = self.primary_key()     # original line
+        prikey = ActualCounts.Material_id   # the replacement
+        with ssnmkr() as session:
+            rows = session.scalars(
+                select(modl)
+                .filter(pfk == getattr(rec, prikey.key))
+                ).all()
+            for r in rows:
+                session.expunge(r)
+            self._childRecs.extend(rows)
+        #endwith
+
+        # clear _recDisplArea and repopulate from _childRecs
+        self.dispArea.clear()
+        for rec in self._childRecs:
+            self._addDisplayRow(rec)
+        # endfor rec in self._childRecs
+
+        # self.Tblmodel.refresh(filter=(self._parentFK == getattr(rec, self._parentRecPK.key)))
+    # loadFromRecord
+    
+    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
+        """
+        Handle changes to internal variable fields.
+        """
+        return
+    # changeInternalVarField
+# MaterialInfoSubform
+class CountScheduleSubform(cSimpleRecordSubForm1):
+    _ORMmodel = CountSchedule
+    _ssnmaker = app_Session
+    _formname = 'Count Schedule Information'
+    _parentFK = 'Material_id'   # FK in parent form that links to this subform
+
+    # these are here in case I move away from a table view in the future
+    fieldDefs = {
+        'id': std_id_def,
+        'CountDate': {'label': 'Count Date', 'widgetType': QDateEdit, 'noedit': True, 'readonly': True, 'position': (1,1)},
+        'Material_id': {'label': 'Material ID', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,2)},
+        'Counter': {'label': 'Counter', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,3)},
+        'Priority': {'label': 'Priority', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,4)},
+        'ReasonScheduled': {'label': 'Reason Scheduled', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True,  'position': (2,1)},
+        'Requestor': {'label': 'Requestor', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True,  'position': (2,2)},
+        'RequestFilled': {'label': 'Request Filled', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True,  'position': (2,3)},
+        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'noedit': True, 'readonly': True,  'position': (3,1,1,6)},
+    }
+
+    def _addActionButtons(self, layoutButtons) -> None:     # pylint: disable=unused-argument
+        # No action buttons in this subform
+        return
+    def _handleActionButton(self, action: str) -> None:     # pylint: disable=unused-argument
+        # No action buttons in this subform
+        return 
+    
+    def loadFromRecord(self, rec):
+        """
+        Load subrecords for the given parent record.
+        Overridden because we want parent ActualCount.Material_id (NOT id!!) to link to CountSchedule.Material_id
+        
+        Args:
+            rec: The parent record from which to load subrecords.
+        """
+        self._parentRec = rec
+        # self._parentRecPK = get_primary_key_column(rec.__class__) # original line
+        self._parentRecPK = ActualCounts.Material_id   # the replacement
+        self._childRecs.clear()
+        self._deleted_childRecs.clear()
+        
+
+        with self._ssnmaker() as session:
+            rows = session.scalars(
+                select(self._ORMmodel)
+                .filter(self._parentFK == getattr(rec, self._parentRecPK.key))
+                ).all()
+            for r in rows:
+                session.expunge(r)
+            self._childRecs.extend(rows)
+
+            self.Tblmodel.refresh(filter=(self._parentFK == getattr(rec, self._parentRecPK.key)))
+        #endwith
+    # loadFromRecord
+    
+    def changeInternalVarField(self, wdgt, intVarField, wdgt_value) -> None:   # pylint: disable=unused-argument
+        """
+        Handle changes to internal variable fields.
+        """
+        return
+    # changeInternalVarField
+# CountScheduleSubform
 class CountEntryForm(cSimpleRecordForm):
     _ORMmodel = ActualCounts
     _ssnmaker = app_Session
@@ -26,25 +161,50 @@ class CountEntryForm(cSimpleRecordForm):
 
     fieldDefs = {
         'id': std_id_def,
-        'CountDate': {'label': 'Count Date', 'widgetType': QDateEdit, 'position': (1,0)},
-        'Material': {'label': 'Material', 'widgetType': QLineEdit, 'position': (2,0)},
-        'Counter': {'label': 'Counter', 'widgetType': QLineEdit, 'position': (3,0)},
-        'LocationOnly': {'label': 'Location Only', 'widgetType': QCheckBox, 'position': (4,0)},
-        'LOCATION': {'label': 'Location', 'widgetType': QLineEdit, 'position': (5,0)},
-        'CTD_QTY_Expr': {'label': 'Count Quantity Expression', 'widgetType': QLineEdit, 'position': (6,0)},
-        'FLAG_PossiblyNotRecieved': {'label': 'Possibly Not Received', 'widgetType': QCheckBox, 'position': (7,0)},
-        'FLAG_MovementDuringCount': {'label': 'Movement During Count', 'widgetType': QCheckBox, 'position': (8,0)},
-        'PKGID_Desc': {'label': 'Package ID/Description', 'widgetType': QLineEdit, 'position': (9,0)},
-        'TAGQTY': {'label': 'Tag Quantity', 'widgetType': QLineEdit, 'position': (10,0)},
-        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'position': (11,0)},
+        'CountDate': {'label': 'Count Date', 'widgetType': QDateEdit, 'position': (1,1,1,2)},
+        'Material_id': {'label': 'Material', 'widgetType': AppchoiceWidgets.chooseMaterials, 'position': (1,3,1,3)},
+        'Counter': {'label': 'Counter', 'widgetType': QLineEdit, 'position': (1,8,1,2)},
+        'LocationOnly': {'label': 'Location Only', 'widgetType': QCheckBox, 'position': (2,1)},
+        'LOCATION': {'label': 'Location', 'widgetType': QLineEdit, 'position': (2,2,1,2)},
+        'CTD_QTY_Expr': {'label': 'Ct Qty Expr', 'widgetType': QLineEdit, 'position': (2,4,1,3)},        
+        '+CTD_QTY_Eval': {'label': '=', 'widgetType': QLabel, 'position': (2,7)},        
+        'FLAG_PossiblyNotRecieved': {'label': 'Poss Not Recvd', 'widgetType': QCheckBox, 'position': (2,8)},
+        'FLAG_MovementDuringCount': {'label': 'Mvmt During Count', 'widgetType': QCheckBox, 'position': (2,9)},
+        'PKGID_Desc': {'label': 'Pkg ID/Desc', 'widgetType': QLineEdit, 'position': (3,1,1,2)},
+        'TAGQTY': {'label': 'Tag Qty', 'widgetType': QLineEdit, 'position': (3,3,1,2)},
+        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'position': (3,5,1,4)},
+        # TODO: allow for subform_class to be strings that are resolved later
+        'sbfmMaterial': {'subform_class': MaterialInfoSubform, 'position': (5,1,1,8)},  
+        'sbfmCountSchedule': {'subform_class': CountScheduleSubform, 'position': (7,1,1,8)},  
     }
 
+    
+    def fillFormFromcurrRec(self):
+        """
+        Post-load processing for CTD_QTY_Expr field.
+        Evaluate the expression and update the corresponding label.
+        """
+        super().fillFormFromcurrRec()
+        
+        exprwdgt = self._formWidgets['CTD_QTY_Expr']
+        assert isinstance(exprwdgt, cQFmFldWidg), "CTD_QTY_Expr widget is not correct type"
+        expr = exprwdgt.Value()
+        lbl_eval = self._formWidgets['+CTD_QTY_Eval']
+        assert isinstance(lbl_eval, cQFmFldWidg), "+CTD_QTY_Eval widget is not correct type"
+        try:
+            result = evaluate(expr)
+            lbl_eval.setText(f"<b>{result}<b>")
+        except Exception:   # pylint: disable=broad-exception-caught   # catch any exceptions from evaluate
+            lbl_eval.setText("<b>????<b>")
+    # fillFormFromcurrRec
+    
     def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
         """
         Handle changes to internal variable fields.
         """
         return
-
+    # changeInternalVarField
+# CountEntryForm
 
 class rptCountSummary(QWidget):
     """
