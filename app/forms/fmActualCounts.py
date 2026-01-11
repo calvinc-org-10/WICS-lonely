@@ -1,5 +1,5 @@
 from datetime import date
-from typing import Any
+from typing import Any, List
 
 from PySide6.QtCore import QDate, Qt, Slot
 from PySide6.QtWidgets import QCalendarWidget, QCheckBox, QDateEdit, QFrame, QHBoxLayout, QLabel, QLineEdit, QPlainTextEdit, QPushButton, QScrollArea, QVBoxLayout, QWidget
@@ -28,7 +28,8 @@ class MaterialInfoSubform(cSimpleRecordSubForm2):
     _ORMmodel = MaterialList
     _ssnmaker = app_Session
     _formname = 'Material Information'
-    _parentFK = 'id'   # FK in parent form that links to this subform
+    _linkFld = 'id'                   # FK in this form that links to parent
+    _parent_linkFld = 'Material_id'   # FK in parent form that links to this subform
 
     fieldDefs = {
         'id': std_id_def,
@@ -47,45 +48,7 @@ class MaterialInfoSubform(cSimpleRecordSubForm2):
     def _handleActionButton(self, action: str) -> None:
         # No action buttons in this subform
         return 
-    
-    def loadFromRecord(self, rec):
-        """
-        Load subrecords for the given parent record.
-        Overridden because we want parent ActualCount.Material_id (NOT id!!) to link to CountSchedule.Material_id
         
-        Args:
-            rec: The parent record from which to load subrecords.
-        """
-        self.setparentRec(rec)
-        self._childRecs.clear()
-        self._deleted_childRecs.clear()
-
-        ssnmkr = self.ssnmaker()
-        assert ssnmkr is not None, "Sessionmaker must be set before touching the database"
-        modl = self.ORMmodel()
-        assert modl is not None, "ORMmodel must be set before deleting record"
-        pfk = self.parentFK()
-        # prikey = self.primary_key()     # original line
-        prikey = ActualCounts.Material_id   # the replacement
-        with ssnmkr() as session:
-            rows = session.scalars(
-                select(modl)
-                .filter(pfk == getattr(rec, prikey.key))
-                ).all()
-            for r in rows:
-                session.expunge(r)
-            self._childRecs.extend(rows)
-        #endwith
-
-        # clear _recDisplArea and repopulate from _childRecs
-        self.dispArea.clear()
-        for rec in self._childRecs:
-            self._addDisplayRow(rec)
-        # endfor rec in self._childRecs
-
-        # self.Tblmodel.refresh(filter=(self._parentFK == getattr(rec, self._parentRecPK.key)))
-    # loadFromRecord
-    
     def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
         """
         Handle changes to internal variable fields.
@@ -97,7 +60,8 @@ class CountScheduleSubform(cSimpleRecordSubForm1):
     _ORMmodel = CountSchedule
     _ssnmaker = app_Session
     _formname = 'Count Schedule Information'
-    _parentFK = 'Material_id'   # FK in parent form that links to this subform
+    _linkFld = 'Material_id'          # FK in this form that links to parent
+    _parent_linkFld = 'Material_id'    # FK in parent form that links to this subform
 
     # these are here in case I move away from a table view in the future
     fieldDefs = {
@@ -118,34 +82,6 @@ class CountScheduleSubform(cSimpleRecordSubForm1):
     def _handleActionButton(self, action: str) -> None:     # pylint: disable=unused-argument
         # No action buttons in this subform
         return 
-    
-    def loadFromRecord(self, rec):
-        """
-        Load subrecords for the given parent record.
-        Overridden because we want parent ActualCount.Material_id (NOT id!!) to link to CountSchedule.Material_id
-        
-        Args:
-            rec: The parent record from which to load subrecords.
-        """
-        self._parentRec = rec
-        # self._parentRecPK = get_primary_key_column(rec.__class__) # original line
-        self._parentRecPK = ActualCounts.Material_id   # the replacement
-        self._childRecs.clear()
-        self._deleted_childRecs.clear()
-        
-
-        with self._ssnmaker() as session:
-            rows = session.scalars(
-                select(self._ORMmodel)
-                .filter(self._parentFK == getattr(rec, self._parentRecPK.key))
-                ).all()
-            for r in rows:
-                session.expunge(r)
-            self._childRecs.extend(rows)
-
-            self.Tblmodel.refresh(filter=(self._parentFK == getattr(rec, self._parentRecPK.key)))
-        #endwith
-    # loadFromRecord
     
     def changeInternalVarField(self, wdgt, intVarField, wdgt_value) -> None:   # pylint: disable=unused-argument
         """
@@ -178,6 +114,14 @@ class CountEntryForm(cSimpleRecordForm):
         'sbfmCountSchedule': {'subform_class': CountScheduleSubform, 'position': (7,1,1,8)},  
     }
 
+
+    def _finalizeMainLayout(self, layoutMain: QVBoxLayout, items: List | tuple) -> None:
+        L = items[1].layout()  # layout of the second item, which is the subform area
+        L.setSpacing(0)
+        L.setContentsMargins(0,0,0,0)
+        L.setStretch(L.count(), 1)   # make last item (spacer) stretchable
+        return super()._finalizeMainLayout(layoutMain, items)
+    
     
     def fillFormFromcurrRec(self):
         """
