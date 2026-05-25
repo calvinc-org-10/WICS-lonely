@@ -21,7 +21,7 @@ class MainScreen(QWidget):
         if not self.objectName():
             self.setObjectName("MainWindow")
 
-        pixsize=100
+        pixsize=100     #pylint: disable=unused-variable
         # applogo = QPixmap("F:/calvincTools/calvincTools/assets/cTools.png").scaled(pixsize, pixsize, Qt.AspectRatioMode.KeepAspectRatio, Qt.TransformationMode.SmoothTransformation),
         applogo = QPixmap()
         cTools = calvincTools(

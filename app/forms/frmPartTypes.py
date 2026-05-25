@@ -4,17 +4,27 @@ from app.models import WhsePartTypes
 
 
 from PySide6.QtWidgets import QCheckBox, QLineEdit
-from calvincTools.utils import cSimpleRecordForm
+from calvincTools.utils import cSRFSingleRecordForm
 
 
-class PartTypesForm(cSimpleRecordForm):
+class PartTypesForm(cSRFSingleRecordForm):
     _ORMmodel = WhsePartTypes
     _ssnmaker = app_Session
     _formname = 'Warehouse Part Types Form'
 
-    fieldDefs = {
-        'id': std_id_def,
-        'WhsePartType': {'label': 'Warehouse Part Type', 'widgetType': QLineEdit, 'position': (1,0)},
-        'PartTypePriority': {'label': 'Part Type Priority', 'widgetType': QLineEdit, 'position': (2,0)},
-        'InactivePartType': {'label': 'Inactive Part Type', 'widgetType': QCheckBox, 'position': (3,0)},
-    }
+    def defineFields(self):
+        fieldDefs = {
+            'id': std_id_def,
+            'WhsePartType': {'label': 'Warehouse Part Type', 'widget_type': QLineEdit, 'position': (1,0)},
+            'PartTypePriority': {'label': 'Part Type Priority', 'widget_type': QLineEdit, 'position': (2,0)},
+            'InactivePartType': {'label': 'Inactive Part Type', 'widget_type': QCheckBox, 'position': (3,0)},
+        }
+        retList = []
+        for fieldname, fieldDef in fieldDefs.items():
+            fieldDef['name'] = fieldname
+            retList.append(fieldDef)
+        return retList
+    # defineFields
+    def end_of_class(self):
+        pass
+    

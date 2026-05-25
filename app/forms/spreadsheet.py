@@ -1,61 +1,90 @@
 import re as regex
-from typing import Any
+from typing import Any, List, Type
 from datetime import date, datetime
 from dateutil.parser import parse as dateparse
 
 from PySide6.QtCore import Qt, Slot
 from PySide6.QtGui import QIcon
-from PySide6.QtWidgets import QBoxLayout, QCheckBox, QGridLayout, QGroupBox, QLabel, QProgressBar, QPushButton, QScrollArea, QTabWidget, QVBoxLayout, QWidget
+from PySide6.QtWidgets import (
+    QWidget,
+    QBoxLayout, QVBoxLayout, QGridLayout, 
+    QScrollArea, 
+    QCheckBox, QGroupBox, QLabel, QPushButton, 
+    QProgressBar, 
+    )
+from sqlalchemy.orm import Session, sessionmaker
+
 from calvincTools.utils import (
-    cSimpleRecordForm, cFileSelectWidget,
+    cSRFSingleRecordForm, cFileSelectWidget,
+    cExcelFile,
+    cstdTabWidget,
     )
 
-from sqlalchemy import delete, func, insert, literal_column, select, text, update
+from sqlalchemy import (
+    select, update, delete, insert, 
+    literal_column, 
+    text, func, 
+    )
 
-from openpyxl import load_workbook
+# from openpyxl import load_workbook
 from openpyxl.utils.datetime import WINDOWS_EPOCH, from_excel
 
 from qtawesome import icon
 
+from calvincTools.utils.forms.definitions.cQFormBtnDef import cQFormBtnDef
+from calvincTools.utils.forms.definitions.cQFormFieldDef import cQFormFieldDef
 from mathematical_expressions_parser.eval import evaluate
 
 from app.database import Repository, get_app_session, get_app_sessionmaker
-from app.models import ActualCounts, CountSchedule, MaterialList, SAP_SOHRecs, SAPPlants_org, UploadSAPResults, tmpMaterialListUpdate
+from app.models import (
+    ActualCounts, CountSchedule, MaterialList, tmpMaterialListUpdate,
+    SAP_SOHRecs, SAPPlants_org, UploadSAPResults, 
+    )
 
 
-
-class UpdateMatlListfromSAP(cSimpleRecordForm):
+class UpdateMatlListfromSAP(cSRFSingleRecordForm):
     _ORMmodel = tmpMaterialListUpdate
     _formname = "Update Material List from SAP MM60 or ZMSQV001 Spreadsheet"
     _ssnmaker = get_app_sessionmaker()
-    fieldDefs = {
+    _field_defs = [
         # no fields to edit, everything manually handled
-    }
+    ]
 
 
-    # __init__ inherited from cSimpleRecordForm
+    def __init__(self, *args, **kwargs):    # copy header from parent?
+        self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
+        self.btnChooseFile.fileChosen.connect(self.FileChosen)
 
+        self.dict_chkUpdtOption = {}
+
+        self.chkDeleteIfNotinSprsht = QCheckBox("Delete Records Not in Spreadsheet")
+
+        self.wdgtUpdtStatusText = QLabel("")
+        self.wdgtUpdtStatusProgBar = QProgressBar()
+        
+        super().__init__(*args, **kwargs)   
+    # __init__
+
+    def defineFields(self) -> List[cQFormFieldDef]:
+        # no fields to edit, everything manually handled
+        return []
 
     ###########################################################
     ############## Override cSimpleRecordForm UI build methods
     ###########################################################
 
-    @Slot()
-    def _placeFields(self, layoutFormPages: QTabWidget, layoutFormFixedTop: QGridLayout | None, layoutFormFixedBottom: QGridLayout | None, lookupsAllowed: bool = True) -> None:
-        # return super()._placeFields(layoutFormPages, layoutFormFixedTop, layoutFormFixedBottom, lookupsAllowed)
+    def _build_fields(self):
 
+        layoutFormFixedTop = self._layouts.fixed_top
         mainFormPage = self.FormPage(0)
         assert isinstance(mainFormPage, QGridLayout)
 
         chooseFileWidget = QWidget()
         chooseFileLayout = QGridLayout(chooseFileWidget)
         lblChooseFileLabel = QLabel("Choose or Drop SAP Material List Spreadsheet File:")
-        self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
-        self.btnChooseFile.fileChosen.connect(self.FileChosen)
         chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
         chooseFileLayout.addWidget(self.btnChooseFile, 1, 0)
 
-        self.dict_chkUpdtOption = {}
         self.dict_chkUpdtOption['Description'] = QCheckBox("Description")
         self.dict_chkUpdtOption['SAPMatlType'] = QCheckBox("SAP Material Type")
         self.dict_chkUpdtOption['SAPMatlGroup'] = QCheckBox("SAP Material Group")
@@ -68,27 +97,26 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
         for chk in self.dict_chkUpdtOption.values():
             layoutUpdtOptions.addWidget(chk)
 
-        self.chkDeleteIfNotinSprsht = QCheckBox("Delete Records Not in Spreadsheet")
 
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
         # mainFormPage.addWidget(PhaseWidget, 2, 0)
         mainFormPage.addWidget(grpbxUpdtOptions, 0, 1, 2, 1)
         mainFormPage.addWidget(self.chkDeleteIfNotinSprsht, 2, 1)
 
-        self.wdgtUpdtStatusText = QLabel("")
-        self.wdgtUpdtStatusProgBar = QProgressBar()
         assert layoutFormFixedTop is not None, "layoutFormFixedTop is required"
         layoutFormFixedTop.addWidget(self.wdgtUpdtStatusText, 0, 0)
         layoutFormFixedTop.addWidget(self.wdgtUpdtStatusProgBar, 1, 0)
 
     # _placeFields
 
-    def _addActionButtons(self, layoutButtons: QBoxLayout | None = None, layoutHorizontal: bool = True, NavActions: list[tuple[str, QIcon]] | None = None, CRUDActions: list[tuple[str, QIcon]] | None = None) -> None:
+    def _addActionButtons(self, ActionButtons: List[cQFormBtnDef] | None = None) -> None:
+    # def _addActionButtons(self, layoutButtons: QBoxLayout | None = None, layoutHorizontal: bool = True, NavActions: list[tuple[str, QIcon]] | None = None, CRUDActions: list[tuple[str, QIcon]] | None = None) -> None:
         btnUploadFile = QPushButton(icon('fa5s.file-upload'), "Upload Data from Spreadsheet")
         btnUploadFile.clicked.connect(self.uploadFile)
         btnClose = QPushButton(icon('mdi.close-octagon'), "Close Form")
         btnClose.clicked.connect(self.closeForm)
 
+        layoutButtons = self._layouts.buttons
         if layoutButtons is not None:
             layoutButtons.addWidget(btnUploadFile, alignment=Qt.AlignmentFlag.AlignLeft)
             layoutButtons.addStretch(1)
@@ -170,6 +198,7 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
     ############## other cSimpleRecordForm overrides
     ###########################################################
 
+    #pylint: disable=unused-argument
     def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
         return
 
@@ -192,7 +221,8 @@ class UpdateMatlListfromSAP(cSimpleRecordForm):
 
         self.showUpdateStatus('Reading Spreadsheet')
 
-        wb = load_workbook(filename=fName, read_only=True)
+        wb = cExcelFile.load_from_file(fName, read_only=True)
+        assert wb is not None, "Failed to load spreadsheet file."
         ws = wb.active
         assert ws is not None, "Failed to load active worksheet from spreadsheet."
         SAPcolmnNames = ws[1]
@@ -631,7 +661,7 @@ class ShowUploadedCountEntries(QWidget):
     # __init__
 # ShowUpdateMatlListfromSAPForm
 
-class UploadActCountSprsht(cSimpleRecordForm):
+class UploadActCountSprsht(cSRFSingleRecordForm):
     """
     A form for uploading and processing count entry spreadsheets into the ActualCounts database.
     This class provides a user interface for selecting an Excel spreadsheet containing count data,
@@ -670,43 +700,56 @@ class UploadActCountSprsht(cSimpleRecordForm):
         # no fields to edit, everything manually handled
     }
 
+    # pylint: disable=keyword-arg-before-vararg
+    def __init__(self, formname: str | None = None, field_defs: List[cQFormFieldDef] | None = None, model: Type[Any] | None = None, ssnmaker: sessionmaker | None = None, parent: QWidget | None = None, *args, **kwargs):
+        self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
+        self.btnChooseFile.fileChosen.connect(self.FileChosen)
 
-    # __init__ inherited from cSimpleRecordForm
+        self.wdgtUpdtStatusText = QLabel("")
+        self.wdgtUpdtStatusProgBar = QProgressBar()
 
+        super().__init__(formname, field_defs, model, ssnmaker, parent, *args, **kwargs)
+    # __init__
+
+
+    def defineFields(self) -> List[cQFormFieldDef]:
+        # no fields to edit, everything manually handled
+        return []
 
     ###########################################################
     ############## Override cSimpleRecordForm UI build methods
     ###########################################################
 
-    @Slot()
-    def _placeFields(self, layoutFormPages: QTabWidget, layoutFormFixedTop: QGridLayout | None, layoutFormFixedBottom: QGridLayout | None, lookupsAllowed: bool = True) -> None:
+    def _build_fields(self):
+    
+    # @Slot()
+    # def _placeFields(self, layoutFormPages: QTabWidget, layoutFormFixedTop: QGridLayout | None, layoutFormFixedBottom: QGridLayout | None, lookupsAllowed: bool = True) -> None:
         # no fields to place, everything manually handled
         mainFormPage = self.FormPage(0)
         assert isinstance(mainFormPage, QGridLayout)
+        layoutFormFixedTop = self._layouts.fixed_top
 
         chooseFileWidget = QWidget()
         chooseFileLayout = QGridLayout(chooseFileWidget)
         lblChooseFileLabel = QLabel("Choose or Drop Count Entry Spreadsheet File:")
-        self.btnChooseFile = cFileSelectWidget(btnText="Choose Spreadsheet File")
-        self.btnChooseFile.fileChosen.connect(self.FileChosen)
         chooseFileLayout.addWidget(lblChooseFileLabel, 0, 0)
         chooseFileLayout.addWidget(self.btnChooseFile, 1, 0)
 
         mainFormPage.addWidget(chooseFileWidget, 0, 0)
 
-        self.wdgtUpdtStatusText = QLabel("")
-        self.wdgtUpdtStatusProgBar = QProgressBar()
         assert layoutFormFixedTop is not None, "layoutFormFixedTop is required"
         layoutFormFixedTop.addWidget(self.wdgtUpdtStatusText, 0, 0)
         layoutFormFixedTop.addWidget(self.wdgtUpdtStatusProgBar, 1, 0)
     # _placeFields
 
-    def _addActionButtons(self, layoutButtons: QBoxLayout | None = None, layoutHorizontal: bool = True, NavActions: list[tuple[str, QIcon]] | None = None, CRUDActions: list[tuple[str, QIcon]] | None = None) -> None:
+    #pylint: disable=signature-differs
+    def _addActionButtons(self, ActionButtons) -> None:
         btnUploadFile = QPushButton(icon('fa5s.file-upload'), "Upload Counts")
         btnUploadFile.clicked.connect(self.uploadFile)
         btnClose = QPushButton(icon('mdi.close-octagon'), "Close Form")
         btnClose.clicked.connect(self.closeForm)
 
+        layoutButtons = self._layouts.buttons
         if layoutButtons is not None:
             layoutButtons.addWidget(btnUploadFile, alignment=Qt.AlignmentFlag.AlignLeft)
             layoutButtons.addStretch(1)
@@ -786,6 +829,7 @@ class UploadActCountSprsht(cSimpleRecordForm):
     ############## other cSimpleRecordForm overrides
     ###########################################################
 
+    #pylint: disable=unused-argument
     def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
         return
 
@@ -873,7 +917,8 @@ class UploadActCountSprsht(cSimpleRecordForm):
 
         NOTdbFld_flags = ['**NOTdbFld**',]
 
-        wb = load_workbook(filename=fName, read_only=True)
+        wb = cExcelFile.load_from_file(fName, read_only=True)
+        assert wb is not None, "Failed to load spreadsheet file"
         CountSprshtDateEpoch = wb.epoch
         if 'Counts' in wb:
             ws = wb['Counts']
