@@ -28,7 +28,7 @@ from calvincTools.utils.forms import (
     cSRFRecordList_Record, cSRFRecordList, cSRFRecordGrid,
 )
 
-class MaterialInfoSubform(cSRFRecordList_Record):
+class MaterialInfoSubform_Rec(cSRFRecordList_Record):
     _ORMmodel = MaterialList
     _ssnmaker = app_Session
     _formname = 'Material Information'
@@ -57,7 +57,7 @@ class MaterialInfoSubform(cSRFRecordList_Record):
         
         return retList
     
-    def _addActionButtons(self) -> None:
+    def _addActionButtons(self, ActionButtons = None) -> None:
         # No action buttons in this subform
         return
     def _handleActionButton(self, action: str) -> None:    # pylint: disable=unused-argument
@@ -70,6 +70,38 @@ class MaterialInfoSubform(cSRFRecordList_Record):
     #     """
     #     return
     # changeInternalVarField
+# MaterialInfoSubform
+class MaterialInfoSubform(cSRFRecordList):
+    _ORMmodel = MaterialList
+    _ssnmaker = app_Session
+    _formname = 'Material Information'
+    _linkFld = 'id'                   # FK in this form that links to parent
+    _parent_linkFld = 'Material_id'   # FK in parent form that links to this subform
+    _recordClass = MaterialInfoSubform_Rec
+    
+    def defineFields(self):
+        # """
+        # Define the fields for the MaterialInfoSubform.
+        # """
+        # fieldDefs = {
+        #     'id': std_id_def,
+        #     'org_id': {'label': 'Organization ID', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,1)},
+        #     'Material': {'label': 'Material', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,2)},
+        #     'Description': {'label': 'Description', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,3,1,4)},
+        #     'PartType_id': {'label': 'Part Type', 'widget_type': QLineEdit, 'readonly': True, 'position': (2,1)},
+        #     'TypicalContainerQty': {'label': 'Typical Container Qty', 'widget_type': QLineEdit, 'readonly': True, 'position': (2,2)},
+        #     'TypicalPalletQty': {'label': 'Typical Pallet Qty', 'widget_type': QLineEdit, 'readonly': True, 'position': (2,3)},
+        #     'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'readonly': True,  'position': (3,1,1,6)},
+        # }
+
+        # retList = []
+        # for fldname, flddef in fieldDefs.items():
+        #     flddef['name'] = fldname   # add the field name to the definition for later use
+        #     retList.append(cQFormFieldDef(**flddef))
+        
+        # return retList
+        return []
+    # defineFields
 # MaterialInfoSubform
 class CountScheduleSubform(cSRFRecordGrid):
     _ORMmodel = CountSchedule
@@ -91,8 +123,7 @@ class CountScheduleSubform(cSRFRecordGrid):
         'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'readonly': True,  'position': (3,1,1,6)},
     }
 
-    # pylint: disable=signature-differs
-    def _addActionButtons(self, ActionButtons) -> None:     # pylint: disable=unused-argument
+    def _addActionButtons(self, ActionButtons = None) -> None:     # pylint: disable=unused-argument
         # No action buttons in this subform
         return
     def _handleActionButton(self, action: str) -> None:     # pylint: disable=unused-argument
@@ -126,10 +157,10 @@ class CountEntryForm(cSRFSingleRecordForm):
             'FLAG_MovementDuringCount': {'label': 'Mvmt During Count', 'widget_type': QCheckBox, 'position': (2,9)},
             'PKGID_Desc': {'label': 'Pkg ID/Desc', 'widget_type': QLineEdit, 'position': (3,1,1,2)},
             'TAGQTY': {'label': 'Tag Qty', 'widget_type': QLineEdit, 'position': (3,3,1,2)},
-            'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'position': (3,5,1,4)},
+            'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'position': (3,5,1,5)},
             # TODO: allow for subform_class to be strings that are resolved later
-            'sbfmMaterial': {'field_type': cQFormFieldDef.cQFormFieldType.SUBFORM, 'widget_type': MaterialInfoSubform, 'position': (5,1,1,8)},  
-            'sbfmCountSchedule': {'field_type': cQFormFieldDef.cQFormFieldType.SUBFORM, 'widget_type': CountScheduleSubform, 'position': (7,1,1,8)},  
+            'sbfmMaterial': {'field_type': cQFormFieldDef.cQFormFieldType.SUBFORM, 'widget_type': MaterialInfoSubform, 'position': (5,1,1,9)},  
+            'sbfmCountSchedule': {'field_type': cQFormFieldDef.cQFormFieldType.SUBFORM, 'widget_type': CountScheduleSubform, 'position': (7,1,1,9)},  
         }
         retList = []
         for fldname, flddef in fieldDefs.items():
@@ -166,6 +197,15 @@ class CountEntryForm(cSRFSingleRecordForm):
             lbl_eval.setText(f"<b>{result}<b>")
         except Exception:   # pylint: disable=broad-exception-caught   # catch any exceptions from evaluate
             lbl_eval.setText("<b>????<b>")
+        
+        subfwdgt_material = self._formWidgets['sbfmMaterial'].widget
+        assert isinstance(subfwdgt_material, (cSRFRecordGrid, cSRFRecordList)), "sbfmMaterial widget is not correct type"
+        subfwdgt_material.loadFromRecord(self.currRec())   # pass the current record to the subform so it can load the correct material info
+        
+        subfwdgt_countschedule = self._formWidgets['sbfmCountSchedule'].widget
+        assert isinstance(subfwdgt_countschedule, (cSRFRecordGrid, cSRFRecordList)), "sbfmCountSchedule widget is not correct type"
+        subfwdgt_countschedule.loadFromRecord(self.currRec())   # pass the current record to the subform so it can load the correct material info
+        
     # fillFormFromcurrRec
     
     def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:    # pylint: disable=unused-argument
