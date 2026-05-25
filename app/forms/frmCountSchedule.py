@@ -4,7 +4,10 @@ from app.models import CountSchedule
 
 
 from PySide6.QtWidgets import QCheckBox, QDateEdit, QLineEdit, QPlainTextEdit
-from calvincTools.utils.forms import cSRFSingleRecordForm
+from calvincTools.utils.forms import (
+    cQFormFieldDef,
+    cSRFSingleRecordForm,
+    )
 
 
 class CountScheduleRecordForm(cSRFSingleRecordForm):
@@ -27,7 +30,7 @@ class CountScheduleRecordForm(cSRFSingleRecordForm):
         retList = []
         for fieldname, fieldDef in fieldDefs.items():
             fieldDef['name'] = fieldname
-            retList.append(fieldDef)
+            retList.append(cQFormFieldDef(**fieldDef))
         
         return retList
     

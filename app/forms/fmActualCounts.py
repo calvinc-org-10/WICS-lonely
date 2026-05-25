@@ -141,10 +141,12 @@ class CountEntryForm(cSRFSingleRecordForm):
         # override to add a spacer at the end of the subform area to push things up
         lyouts = super()._buildFormLayout()
         layoutMain = getattr(lyouts, 'main')    # pylint: disable=unused-variable
+        
         L = getattr(lyouts, 'form')
-        L.setSpacing(0)
+        L.setVerticalSpacing(0)      # L.setSpacing(0)
         L.setContentsMargins(0,0,0,0)
-        L.setStretch(L.count(), 1)   # make last item (spacer) stretchable
+        L.setRowStretch(L.count(), 1)   # make last item (spacer) stretchable       # L.setStretch(L.count(), 1)   # make last item (spacer) stretchable
+
         return lyouts
     
     def fillFormFromcurrRec(self):
@@ -154,10 +156,10 @@ class CountEntryForm(cSRFSingleRecordForm):
         """
         super().fillFormFromcurrRec()
         
-        exprwdgt = self._formWidgets['CTD_QTY_Expr']
+        exprwdgt = self._formWidgets['CTD_QTY_Expr'].widget
         assert isinstance(exprwdgt, cQFmFldWidg), "CTD_QTY_Expr widget is not correct type"
         expr = exprwdgt.Value()
-        lbl_eval = self._formWidgets['+CTD_QTY_Eval']
+        lbl_eval = self._formWidgets['+CTD_QTY_Eval'].widget
         assert isinstance(lbl_eval, cQFmFldWidg), "+CTD_QTY_Eval widget is not correct type"
         try:
             result = evaluate(expr)

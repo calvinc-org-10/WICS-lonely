@@ -4,7 +4,10 @@ from app.models import MaterialList
 
 
 from PySide6.QtWidgets import QLineEdit, QPlainTextEdit
-from calvincTools.utils import cSRFSingleRecordForm
+from calvincTools.utils import (
+    cQFormFieldDef,
+    cSRFSingleRecordForm,
+    )
 
 
 class MaterialForm(cSRFSingleRecordForm):
@@ -33,6 +36,6 @@ class MaterialForm(cSRFSingleRecordForm):
         retList = []
         for fieldname, fieldDef in fieldDefs.items():
             fieldDef['name'] = fieldname
-            retList.append(fieldDef)
+            retList.append(cQFormFieldDef(**fieldDef))
         return retList
     

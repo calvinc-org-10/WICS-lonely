@@ -4,7 +4,10 @@ from app.models import WhsePartTypes
 
 
 from PySide6.QtWidgets import QCheckBox, QLineEdit
-from calvincTools.utils import cSRFSingleRecordForm
+from calvincTools.utils import (
+    cQFormFieldDef,
+    cSRFSingleRecordForm,
+    )
 
 
 class PartTypesForm(cSRFSingleRecordForm):
@@ -22,7 +25,7 @@ class PartTypesForm(cSRFSingleRecordForm):
         retList = []
         for fieldname, fieldDef in fieldDefs.items():
             fieldDef['name'] = fieldname
-            retList.append(fieldDef)
+            retList.append(cQFormFieldDef(**fieldDef))
         return retList
     # defineFields
     def end_of_class(self):
