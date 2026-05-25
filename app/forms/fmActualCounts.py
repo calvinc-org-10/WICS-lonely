@@ -16,47 +16,62 @@ from app.models import ActualCounts, CountSchedule, MaterialList, Organizations
 from app.utils import fnSAPList
 
 from calvincTools.utils import (
-    ExcelWorkbook_fileext, Excelfile_fromqs, 
-    cSimpleRecordForm, cSimpRecSbFmRecord, cSimpleRecordSubForm1, cSimpleRecordSubForm2, cQFmFldWidg,
+    ExcelWorkbook_fileext, cExcelFile,
+    cQFmFldWidg,
     clearLayout,
     cDataList,
     cPrintManager,
     )
+from calvincTools.utils.forms import (
+    cQFormFieldDef,
+    cSRFSingleRecordForm,
+    cSRFRecordList_Record, cSRFRecordList, cSRFRecordGrid,
+)
 
-
-class MaterialInfoSubform(cSimpleRecordSubForm2):
+class MaterialInfoSubform(cSRFRecordList_Record):
     _ORMmodel = MaterialList
     _ssnmaker = app_Session
     _formname = 'Material Information'
     _linkFld = 'id'                   # FK in this form that links to parent
     _parent_linkFld = 'Material_id'   # FK in parent form that links to this subform
 
-    fieldDefs = {
-        'id': std_id_def,
-        'org_id': {'label': 'Organization ID', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,1)},
-        'Material': {'label': 'Material', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,2)},
-        'Description': {'label': 'Description', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,3,1,4)},
-        'PartType_id': {'label': 'Part Type', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (2,1)},
-        'TypicalContainerQty': {'label': 'Typical Container Qty', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (2,2)},
-        'TypicalPalletQty': {'label': 'Typical Pallet Qty', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (2,3)},
-        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'noedit': True, 'readonly': True,  'position': (3,1,1,6)},
-    }
+    def defineFields(self):
+        """
+        Define the fields for the MaterialInfoSubform.
+        """
+        fieldDefs = {
+            'id': std_id_def,
+            'org_id': {'label': 'Organization ID', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,1)},
+            'Material': {'label': 'Material', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,2)},
+            'Description': {'label': 'Description', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,3,1,4)},
+            'PartType_id': {'label': 'Part Type', 'widget_type': QLineEdit, 'readonly': True, 'position': (2,1)},
+            'TypicalContainerQty': {'label': 'Typical Container Qty', 'widget_type': QLineEdit, 'readonly': True, 'position': (2,2)},
+            'TypicalPalletQty': {'label': 'Typical Pallet Qty', 'widget_type': QLineEdit, 'readonly': True, 'position': (2,3)},
+            'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'readonly': True,  'position': (3,1,1,6)},
+        }
 
-    def _addActionButtons(self, layoutButtons) -> None:
+        retList = []
+        for fldname, flddef in fieldDefs.items():
+            flddef['name'] = fldname   # add the field name to the definition for later use
+            retList.append(cQFormFieldDef(**flddef))
+        
+        return retList
+    
+    def _addActionButtons(self) -> None:
         # No action buttons in this subform
         return
-    def _handleActionButton(self, action: str) -> None:
+    def _handleActionButton(self, action: str) -> None:    # pylint: disable=unused-argument
         # No action buttons in this subform
         return 
         
-    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
-        """
-        Handle changes to internal variable fields.
-        """
-        return
+    # def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
+    #     """
+    #     Handle changes to internal variable fields.
+    #     """
+    #     return
     # changeInternalVarField
 # MaterialInfoSubform
-class CountScheduleSubform(cSimpleRecordSubForm1):
+class CountScheduleSubform(cSRFRecordGrid):
     _ORMmodel = CountSchedule
     _ssnmaker = app_Session
     _formname = 'Count Schedule Information'
@@ -66,17 +81,18 @@ class CountScheduleSubform(cSimpleRecordSubForm1):
     # these are here in case I move away from a table view in the future
     fieldDefs = {
         'id': std_id_def,
-        'CountDate': {'label': 'Count Date', 'widgetType': QDateEdit, 'noedit': True, 'readonly': True, 'position': (1,1)},
-        'Material_id': {'label': 'Material ID', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,2)},
-        'Counter': {'label': 'Counter', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,3)},
-        'Priority': {'label': 'Priority', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True, 'position': (1,4)},
-        'ReasonScheduled': {'label': 'Reason Scheduled', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True,  'position': (2,1)},
-        'Requestor': {'label': 'Requestor', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True,  'position': (2,2)},
-        'RequestFilled': {'label': 'Request Filled', 'widgetType': QLineEdit, 'noedit': True, 'readonly': True,  'position': (2,3)},
-        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'noedit': True, 'readonly': True,  'position': (3,1,1,6)},
+        'CountDate': {'label': 'Count Date', 'widget_type': QDateEdit, 'readonly': True, 'position': (1,1)},
+        'Material_id': {'label': 'Material ID', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,2)},
+        'Counter': {'label': 'Counter', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,3)},
+        'Priority': {'label': 'Priority', 'widget_type': QLineEdit, 'readonly': True, 'position': (1,4)},
+        'ReasonScheduled': {'label': 'Reason Scheduled', 'widget_type': QLineEdit, 'readonly': True,  'position': (2,1)},
+        'Requestor': {'label': 'Requestor', 'widget_type': QLineEdit, 'readonly': True,  'position': (2,2)},
+        'RequestFilled': {'label': 'Request Filled', 'widget_type': QLineEdit, 'readonly': True,  'position': (2,3)},
+        'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'readonly': True,  'position': (3,1,1,6)},
     }
 
-    def _addActionButtons(self, layoutButtons) -> None:     # pylint: disable=unused-argument
+    # pylint: disable=signature-differs
+    def _addActionButtons(self, ActionButtons) -> None:     # pylint: disable=unused-argument
         # No action buttons in this subform
         return
     def _handleActionButton(self, action: str) -> None:     # pylint: disable=unused-argument
@@ -90,38 +106,46 @@ class CountScheduleSubform(cSimpleRecordSubForm1):
         return
     # changeInternalVarField
 # CountScheduleSubform
-class CountEntryForm(cSimpleRecordForm):
+class CountEntryForm(cSRFSingleRecordForm):
     _ORMmodel = ActualCounts
     _ssnmaker = app_Session
     _formname = 'Count Entry Form'
 
-    fieldDefs = {
-        'id': std_id_def,
-        'CountDate': {'label': 'Count Date', 'widgetType': QDateEdit, 'position': (1,1,1,2)},
-        'Material_id': {'label': 'Material', 'widgetType': AppchoiceWidgets.chooseMaterials, 'position': (1,3,1,3)},
-        'Counter': {'label': 'Counter', 'widgetType': QLineEdit, 'position': (1,8,1,2)},
-        'LocationOnly': {'label': 'Location Only', 'widgetType': QCheckBox, 'position': (2,1)},
-        'LOCATION': {'label': 'Location', 'widgetType': QLineEdit, 'position': (2,2,1,2)},
-        'CTD_QTY_Expr': {'label': 'Ct Qty Expr', 'widgetType': QLineEdit, 'position': (2,4,1,3)},        
-        '+CTD_QTY_Eval': {'label': '=', 'widgetType': QLabel, 'position': (2,7)},        
-        'FLAG_PossiblyNotRecieved': {'label': 'Poss Not Recvd', 'widgetType': QCheckBox, 'position': (2,8)},
-        'FLAG_MovementDuringCount': {'label': 'Mvmt During Count', 'widgetType': QCheckBox, 'position': (2,9)},
-        'PKGID_Desc': {'label': 'Pkg ID/Desc', 'widgetType': QLineEdit, 'position': (3,1,1,2)},
-        'TAGQTY': {'label': 'Tag Qty', 'widgetType': QLineEdit, 'position': (3,3,1,2)},
-        'Notes': {'label': 'Notes', 'widgetType': QPlainTextEdit, 'position': (3,5,1,4)},
-        # TODO: allow for subform_class to be strings that are resolved later
-        'sbfmMaterial': {'subform_class': MaterialInfoSubform, 'position': (5,1,1,8)},  
-        'sbfmCountSchedule': {'subform_class': CountScheduleSubform, 'position': (7,1,1,8)},  
-    }
+    def defineFields(self):
+        
+        fieldDefs = {
+            'id': std_id_def,
+            'CountDate': {'label': 'Count Date', 'widget_type': QDateEdit, 'position': (1,1,1,2)},
+            'Material_id': {'label': 'Material', 'widget_type': AppchoiceWidgets.chooseMaterials, 'position': (1,3,1,3)},
+            'Counter': {'label': 'Counter', 'widget_type': QLineEdit, 'position': (1,8,1,2)},
+            'LocationOnly': {'label': 'Location Only', 'widget_type': QCheckBox, 'position': (2,1)},
+            'LOCATION': {'label': 'Location', 'widget_type': QLineEdit, 'position': (2,2,1,2)},
+            'CTD_QTY_Expr': {'label': 'Ct Qty Expr', 'widget_type': QLineEdit, 'position': (2,4,1,3)},        
+            '+CTD_QTY_Eval': {'label': '=', 'widget_type': QLabel, 'position': (2,7)},        
+            'FLAG_PossiblyNotRecieved': {'label': 'Poss Not Recvd', 'widget_type': QCheckBox, 'position': (2,8)},
+            'FLAG_MovementDuringCount': {'label': 'Mvmt During Count', 'widget_type': QCheckBox, 'position': (2,9)},
+            'PKGID_Desc': {'label': 'Pkg ID/Desc', 'widget_type': QLineEdit, 'position': (3,1,1,2)},
+            'TAGQTY': {'label': 'Tag Qty', 'widget_type': QLineEdit, 'position': (3,3,1,2)},
+            'Notes': {'label': 'Notes', 'widget_type': QPlainTextEdit, 'position': (3,5,1,4)},
+            # TODO: allow for subform_class to be strings that are resolved later
+            'sbfmMaterial': {'field_type': cQFormFieldDef.cQFormFieldType.SUBFORM, 'widget_type': MaterialInfoSubform, 'position': (5,1,1,8)},  
+            'sbfmCountSchedule': {'field_type': cQFormFieldDef.cQFormFieldType.SUBFORM, 'widget_type': CountScheduleSubform, 'position': (7,1,1,8)},  
+        }
+        retList = []
+        for fldname, flddef in fieldDefs.items():
+            flddef['name'] = fldname   # add the field name to the definition for later use
+            retList.append(cQFormFieldDef(**flddef))
+        return retList
 
-
-    def _finalizeMainLayout(self, layoutMain: QVBoxLayout, items: List | tuple) -> None:
-        L = items[1].layout()  # layout of the second item, which is the subform area
+    def _buildFormLayout(self):
+        # override to add a spacer at the end of the subform area to push things up
+        lyouts = super()._buildFormLayout()
+        layoutMain = getattr(lyouts, 'main')    # pylint: disable=unused-variable
+        L = getattr(lyouts, 'form')
         L.setSpacing(0)
         L.setContentsMargins(0,0,0,0)
         L.setStretch(L.count(), 1)   # make last item (spacer) stretchable
-        return super()._finalizeMainLayout(layoutMain, items)
-    
+        return lyouts
     
     def fillFormFromcurrRec(self):
         """
@@ -142,7 +166,7 @@ class CountEntryForm(cSimpleRecordForm):
             lbl_eval.setText("<b>????<b>")
     # fillFormFromcurrRec
     
-    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
+    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:    # pylint: disable=unused-argument
         """
         Handle changes to internal variable fields.
         """
@@ -596,11 +620,10 @@ class rptCountSummary(QWidget):
                 if k>0xffff:
                     raise FileExistsError("Cannot find unique Excel file name for Count Summary report")
             # end while
-            ExcelFileName = Excelfile_fromqs(
-                self.Excel_qdict,
-                _ExcelFileName,
-                returnFileName=True
-                )
+            Xfil = cExcelFile()
+            Xfil.load_from_listofdict(self.Excel_qdict)
+            Xfil.save(_ExcelFileName)
+            ExcelFileName = _ExcelFileName
 
         self.displayReport(
             Rptvariation,
