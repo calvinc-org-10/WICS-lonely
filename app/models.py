@@ -16,7 +16,7 @@ from PySide6.QtCore import (QObject, )
 from PySide6.QtWidgets import (QApplication, )
 # from cMenu.utils import (pleaseWriteMe, )
 
-from .database import app_Session       # pylint: disable=relative-beyond-top-level      # this is correct
+from .database import app_Session
 
 ix_naming_convention = {
     "ix": "ix_%(column_0_label)s",
