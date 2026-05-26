@@ -198,13 +198,13 @@ class CountEntryForm(cSRFSingleRecordForm):
         except Exception:   # pylint: disable=broad-exception-caught   # catch any exceptions from evaluate
             lbl_eval.setText("<b>????<b>")
         
-        subfwdgt_material = self._formWidgets['sbfmMaterial'].widget
-        assert isinstance(subfwdgt_material, (cSRFRecordGrid, cSRFRecordList)), "sbfmMaterial widget is not correct type"
-        subfwdgt_material.loadFromRecord(self.currRec())   # pass the current record to the subform so it can load the correct material info
+        # subfwdgt_material = self._formWidgets['sbfmMaterial'].widget
+        # assert isinstance(subfwdgt_material, (cSRFRecordGrid, cSRFRecordList)), "sbfmMaterial widget is not correct type"
+        # subfwdgt_material.loadFromRecord(self.currRec())   # pass the current record to the subform so it can load the correct material info
         
-        subfwdgt_countschedule = self._formWidgets['sbfmCountSchedule'].widget
-        assert isinstance(subfwdgt_countschedule, (cSRFRecordGrid, cSRFRecordList)), "sbfmCountSchedule widget is not correct type"
-        subfwdgt_countschedule.loadFromRecord(self.currRec())   # pass the current record to the subform so it can load the correct material info
+        # subfwdgt_countschedule = self._formWidgets['sbfmCountSchedule'].widget
+        # assert isinstance(subfwdgt_countschedule, (cSRFRecordGrid, cSRFRecordList)), "sbfmCountSchedule widget is not correct type"
+        # subfwdgt_countschedule.loadFromRecord(self.currRec())   # pass the current record to the subform so it can load the correct material info
         
     # fillFormFromcurrRec
     
