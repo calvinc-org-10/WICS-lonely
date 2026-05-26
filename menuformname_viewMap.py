@@ -48,5 +48,5 @@ FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
 FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.PartTypesForm)
 
 
-FormNameToURL_Map['test01'.lower()] = ('', None) #_newcode.UploadSAPSOHSprsht)
+FormNameToURL_Map['test01'.lower()] = ('', _newcode.UploadSAPSOHSprsht)
 FormNameToURL_Map['test02'.lower()] = ('', None)
