@@ -2,7 +2,7 @@
 code that's being auditioned
 """
 
-from typing import (Any, List, )
+from typing import (Any, List, Dict, )
 from datetime import (date, datetime, )
 
 from PySide6.QtCore import (
@@ -35,7 +35,7 @@ from qtawesome import icon
 
 from calvincTools.utils import (
     cSRFSingleRecordForm, cFileSelectWidget,
-    cExcelFile,
+    cExcelFile, 
     )
 
 from app.database import (get_app_sessionmaker, Repository, )
@@ -50,6 +50,13 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
     _formname = "Upload SAP MB52 Spreadsheet"
     _ssnmaker = get_app_sessionmaker()
 
+    LastSAPUpload = None
+    uplDate = None
+    uplDateWarning = None
+    btnChooseFile = None
+    wdgtUpdtStatusText = None
+    wdgtUpdtStatusProgBar = None
+    
 
     # __init__ inherited from cSimpleRecordForm
     def __init__(self, *args, **kwargs):
@@ -68,7 +75,7 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
     ###########################################################
 
     @Slot()
-    def _placeFields(self) -> None:
+    def _build_fields(self) -> None:
     # def _placeFields(self, layoutFormPages: QTabWidget, layoutFormFixedTop: QGridLayout | None, layoutFormFixedBottom: QGridLayout | None, lookupsAllowed: bool = True) -> None:
         # no fields to place, everything manually handled
         mainFormPage = self.FormPage(0)
@@ -109,7 +116,8 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
         layoutFormFixedTop.addWidget(self.wdgtUpdtStatusProgBar, 1, 0)
     # _placeFields
 
-    def _addActionButtons(self, Actions) -> None:
+
+    def _addActionButtons(self, ActionButtons) -> None:     # pylint:disable=signature-differs
         layoutButtons = self._layouts.buttons
 
         btnUploadFile = QPushButton(icon('fa5s.file-upload'), "Upload SAP SOH")
@@ -137,6 +145,9 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
 
     def showUpdateStatus(self, statusText: str, progressValue: int = 0, progressMax: int = -1) -> None:
 
+        assert self.wdgtUpdtStatusText is not None, "wdgtUpdtStatusText is not defined"
+        assert self.wdgtUpdtStatusProgBar is not None, "wdgtUpdtStatusProgBar is not defined"
+        
         self.wdgtUpdtStatusText.setText(statusText)
 
         if progressMax < 0:
@@ -160,6 +171,8 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
 
     @Slot()
     def uplDateChanged(self, dateslctd: QDate):
+        assert self.uplDateWarning is not None, "uplDateWarning widget is not defined"
+        
         # Check if SAP SOH records already exist for this date
         UplDate = datetime(dateslctd.year(), dateslctd.month(), dateslctd.day()).date()
         self.uplDateWarning.setText(" ")    # assume no warning
@@ -205,7 +218,7 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
     ############## other cSimpleRecordForm overrides
     ###########################################################
 
-    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:
+    def changeInternalVarField(self, wdgt, intVarField: str, wdgt_value: Any) -> None:      # pylint:disable=unused-argument
         return
 
 
@@ -217,119 +230,105 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
         self.showUpdateStatus("Initializing Upload of SAP MB52 Spreadsheet...")
 
     def proc_UpSAPSprsheet_00CopySpreadsheet(self) -> str:
+        assert self.btnChooseFile is not None, "btnChooseFile widget is not defined"
         return self.btnChooseFile.getFileChosen()
 
     def proc_UpSAPSprsheet_01ReadSheet(self, fName: str) -> None:
         self.showUpdateStatus("Reading SAP MB52 Spreadsheet...")
 
-        NOTdbFld_flags = ['**NOTdbFld**',]
-
-        # wb = load_workbook(filename=fName, read_only=True)
-        wb = cExcelFile.load_from_file(filename=fName, read_only=True)
-        assert wb is not None, "Failed to load spreadsheet file"
-        CountSprshtDateEpoch = wb.epoch
-        ws = wb.active
-        assert ws is not None, "Spreadsheet has no active worksheet"
-
+        # NOTdbFld_flags = ['**NOTdbFld**',]
+        
         _SStName_Material = 'Material'
         _TblName_Material = 'MaterialPartNum'
         _SStName_Plant = 'Plant'
         _TblName_Plant = 'Plant'
-        SprshtcolmnNames = ws[1]
-        SprshtcolmnMap = {_TblName_Material: None, _TblName_Plant: None}
-        SprshtREQUIREDFLDS = [_TblName_Material, _TblName_Plant, ]
-        Sprsht_SSName_TableName_map = {
-                _SStName_Material: _TblName_Material,  # Material+org will translate to a Material_id
-                _SStName_Plant: _TblName_Plant,
-                'Material description': 'Description',
-                'Material type': 'MaterialType',
-                'Storage location': 'StorageLocation',
-                'Base Unit of Measure': 'BaseUnitofMeasure',
-                'Unrestricted': 'Amount',
-                'Currency': 'Currency',
-                'Value Unrestricted': 'ValueUnrestricted',
-                'Special Stock': 'SpecialStock',
-                'Blocked':'Blocked',
-                'Value BlockedStock':'ValueBlocked',
-                'Vendor':'Vendor',
-                'Batch': 'Batch',
-                }
-        for col in SprshtcolmnNames:
-            if col.value in Sprsht_SSName_TableName_map:
-                colkey = Sprsht_SSName_TableName_map[str(col.value)]
-                # has this col.value already been mapped?
-                if (colkey in SprshtcolmnMap and SprshtcolmnMap[colkey] is not None):
-                    # yes, that's a problem
-                    self.showUpdateStatus(f"Error: This workbook has a bad header row - More than one column named {col.value}.  See Calvin to fix this.")
-                    wb.close()
-                    return
-                else:
-                    SprshtcolmnMap[colkey] = col.column - 1 # type: ignore
-                # endif previously mapped
-            #endif col.value in SAP_SSName_TableName_map
-        #endfor col in SAPcolmnNames
 
-        HeaderGood = all([(reqFld in SprshtcolmnMap) for reqFld in SprshtREQUIREDFLDS])
-        if not HeaderGood:
-            MissingRequiredFields = [reqFld for reqFld in SprshtREQUIREDFLDS if reqFld not in SprshtcolmnMap]
-            self.showUpdateStatus(f"Error: This workbook has a bad header row - missing columns {MissingRequiredFields}.  See Calvin to fix this.")
-            wb.close()
-            return
-        material_col = SprshtcolmnMap[_TblName_Material]
-        plants_col = SprshtcolmnMap[_TblName_Plant]
-        assert material_col is not None, "Material column mapping failed"
-        assert plants_col is not None, "Plant column mapping failed"
+        def SAPFldDescMap() -> Dict[str,cExcelFile.SprdsheetFldDescriptor]:
+            Sprsht_SSName_TableName_map = {
+                    # Material+org will translate to a Material_id
+                    _SStName_Material: {'ModelFldName': _TblName_Material},
+                    _SStName_Plant: {'ModelFldName': _TblName_Plant},
+                    'OrgID': {'ModelFldName': 'org_id', 'CalculatedFld': True, 'CleanProc': SAPCalcFldProc, 'AllowedTypes': (int, )},
+                    'MatlID': {'ModelFldName': 'Material_id', 'CalculatedFld': True, 'CleanProc': SAPCalcFldProc, 'AllowedTypes': (int, )},
+                    'UpldAt': {'ModelFldName': 'uploaded_at', 'CalculatedFld': True, 'CleanProc': SAPCalcFldProc, 'AllowedTypes': (date, )},
+                    'Material description': {'ModelFldName': 'Description'},
+                    'Material type': {'ModelFldName': 'MaterialType'},
+                    'Storage location': {'ModelFldName': 'StorageLocation'},
+                    'Base Unit of Measure': {'ModelFldName': 'BaseUnitofMeasure'},
+                    'Unrestricted': {'ModelFldName': 'Amount', 'CleanProc': SAPFldCleanProc, 'AllowedTypes': (float, int, )},
+                    'Currency': {'ModelFldName': 'Currency'},
+                    'Value Unrestricted': {'ModelFldName': 'ValueUnrestricted', 'CleanProc': SAPFldCleanProc, 'AllowedTypes': (float, int, )},
+                    'Special Stock': {'ModelFldName': 'SpecialStock'},
+                    'Blocked':{'ModelFldName': 'Blocked', 'CleanProc': SAPFldCleanProc, 'AllowedTypes': (float, int, )},
+                    'Value BlockedStock':{'ModelFldName': 'ValueBlocked', 'CleanProc': SAPFldCleanProc, 'AllowedTypes': (float, int, )},
+                    'Vendor':{'ModelFldName': 'Vendor'},
+                    'Batch': {'ModelFldName': 'Batch'},
+                    }
+            retDict = {ssName: cExcelFile.SprdsheetFldDescriptor(**fldDescArgs)
+                for ssName, fldDescArgs in Sprsht_SSName_TableName_map.items()}
+            return retDict
+        # SAPFldDescMap
+
+        def SAPFldCleanProc(fldName:str, fldVal:Any, row, dbFld_to_SsprshtCol, **kwargs) -> Any:        # pylint:disable=unused-argument
+            if fldVal is None:
+                return None
+            if fldName in ['Amount', 'ValueUnrestricted', 'ValueBlocked', 'Blocked']:
+                try:
+                    return float(fldVal)
+                except ValueError:
+                    return 0.0
+            # endif numeric fields
+            return fldVal
+        # SAPFldCleanProc
+        
+        def SAPCalcFldProc(fldName:str, val, row, dbFld_to_SsprshtCol, **kwargs) -> Any:    # pylint:disable=unused-argument
+            if fldName == 'org_id':
+                plant_val = row[dbFld_to_SsprshtCol[_TblName_Plant]]
+                org_id = Repository(get_app_sessionmaker(), SAPPlants_org).get_all(SAPPlants_org.SAPPlant==plant_val)[0].org_id
+                return org_id
+            elif fldName == 'Material_id':
+                plant_val = row[dbFld_to_SsprshtCol[_TblName_Plant]]
+                _org = Repository(get_app_sessionmaker(), SAPPlants_org).get_all(SAPPlants_org.SAPPlant==plant_val)[0].org_id
+                MatlNum = row[dbFld_to_SsprshtCol[_TblName_Material]]
+                try:
+                    whereclause = and_(MaterialList.org_id==_org, MaterialList.Material==MatlNum)
+                    MatlRec = Repository(get_app_sessionmaker(), MaterialList).get_all(whereclause)[0]
+                    return MatlRec.id
+                except (TypeError, IndexError, KeyError):
+                    return None
+            elif fldName == 'uploaded_at':
+                assert self.uplDate is not None, "uplDate is not defined"
+                return self.uplDate.date().toPython()
+            # endif calculated fields
+            return None
+        # SAPCalcFldProc
+
+        def UplSAPProgressAnnounceCallback(currentRowNum, totalRows):        
+            self.showUpdateStatus(f"Reading Spreadsheet ... record {currentRowNum} of {totalRows}", currentRowNum, totalRows)
 
         # if SAP SOH records exist for this date, kill them; only one set of SAP SOH records per day
         # (this was signed off on by user before coming here)
+        assert self.uplDate is not None, "uplDate is not defined"
         UplDate = self.uplDate.date().toPython()
         Repository(get_app_sessionmaker(), SAP_SOHRecs).removewhere(SAP_SOHRecs.uploaded_at==UplDate)
 
-        SprshtRowNum = 1
-        nRowsAdded = 0
-
-        intrval_announce = min(100, int(max(1, ws.max_row // 10)))
-        for row in ws.iter_rows(min_row=SprshtRowNum+1, values_only=True):
-            SprshtRowNum += 1
-            if SprshtRowNum % intrval_announce == 0:
-                self.showUpdateStatus(f"Reading Spreadsheet ... record {SprshtRowNum} of {ws.max_row}", SprshtRowNum, ws.max_row)
-
-            if material_col is None or row[material_col] is None:
-                MatlNum = ''
-            else:
-                MatlNum = row[material_col]
-            if len(str(MatlNum)):
-                plant_val = row[plants_col]
-                _org = Repository(get_app_sessionmaker(), SAPPlants_org).get_all(SAPPlants_org.SAPPlant==plant_val)[0].org_id
-                try:
-                    whereclause = and_(MaterialList.org_id==_org,MaterialList.Material==MatlNum)
-                    MatlRec = Repository(get_app_sessionmaker(), MaterialList).get_all(whereclause)[0]
-                except (TypeError, IndexError, KeyError):
-                    MatlRec = None
-                if not MatlRec:
-                    self.showUpdateStatus(f'either {MatlNum}  does not exist in MaterialList or incorrect Plant ({plant_val}) given',
-                        SprshtRowNum, ws.max_row)
-                else:
-                    SRec = SAP_SOHRecs(
-                            org_id = _org,     # will be going away - or will it???
-                            uploaded_at = UplDate,
-                            Material_id = MatlRec.id
-                            )
-                    for fldName, colNum in SprshtcolmnMap.items():
-                        assert colNum is not None, f"Column number for field {fldName} is None"
-                        if fldName == _TblName_Material:
-                            pass    # not continue - we are preserving the incoming MaterialPartNum string
-                        setval = '' if row[colNum] is None else row[colNum]
-                        setattr(SRec, fldName, setval)
-                    # endfor fldName, colNum
-                    Repository(get_app_sessionmaker(), SAP_SOHRecs).add(SRec)
-                    nRowsAdded += 1
-                # endif MatlRec
-            # endif len(str(MatlNum))
-        # endfor row in ws.iter_rows
-
-        self.uploadresults['nRowsTotal'] = SprshtRowNum
-        self.uploadresults['nRowsAdded'] = nRowsAdded
+        # wb = load_workbook(filename=fName, read_only=True)
+        wb = cExcelFile.load_from_file(filename=fName, read_only=True)
+        assert wb is not None, "Failed to load spreadsheet file"
+        # CountSprshtDateEpoch = wb.epoch
+        
+        wb.save_to_SQLAlchemyModel(
+            ssnmaker=self._ssnmaker,
+            TargetModel=SAP_SOHRecs,
+            WksheetName=None,   # default to active sheet
+            SprdsheetFlds=SAPFldDescMap(),
+            required_columns=[_TblName_Material, _TblName_Plant, ],
+            progress_interval=100,
+            progress_callback=UplSAPProgressAnnounceCallback,
+            )
+        
+        self.uploadresults['nRowsTotal'] = wb.num_rows
+        self.uploadresults['nRowsAdded'] = wb.nRows
         self.uploadresults['uploadDate'] = UplDate
 
         # close and kill temp files
@@ -370,7 +369,7 @@ class ShowUploadedSAPResults(QWidget):
         wdgtScrollArea.setWidget(wdgtMainArea)
         myLayout.addWidget(wdgtScrollArea)
 
-        nRowsRead = uploadresults.get('nRowsTotal', 0)
+        # nRowsRead = uploadresults.get('nRowsTotal', 0)
         nRowsAdded = uploadresults.get('nRowsAdded', 0)
         upldDate = uploadresults.get('uploadDate', None)
 
