@@ -24,7 +24,7 @@ FormNameToURL_Map['frmcountentry'.lower()] = ('CountEntryForm', forms.CountEntry
 FormNameToURL_Map['frmUploadCountEntry'.lower()] = ('UploadActualCountSprsht', forms.spreadsheet.UploadActCountSprsht)
 FormNameToURL_Map['frmcountsummarypreview'.lower()] = ('CountSummaryReport', forms.fmActualCounts.rptCountSummary)
 FormNameToURL_Map['frmrequestedcountsummary'.lower()] = ('CountSummaryReport-v-init', None)
-FormNameToURL_Map['frmimportsap'.lower()] = ('UploadSAPSprSht', None)
+FormNameToURL_Map['frmimportsap'.lower()] = ('UploadSAPSprSht', forms.UploadSAPSOHSprsht)
 FormNameToURL_Map['frmmaterial'.lower()] = ('MatlForm', forms.MaterialForm)
 FormNameToURL_Map['frmmpnlookup'.lower()] = ('MPNLookup', None)
 FormNameToURL_Map['frmParts-By-Type-with-LastCounts'.lower()] = ('MatlByPartType', None)
@@ -47,5 +47,5 @@ FormNameToURL_Map['tblActualCounts'.lower()] = ('ActualCountList', None)
 FormNameToURL_Map['PartTypeFm'.lower()] = ('PartTypeForm', forms.PartTypesForm)
 
 
-FormNameToURL_Map['test01'.lower()] = ('', forms.UploadSAPSOHSprsht)
+FormNameToURL_Map['test01'.lower()] = ('', None)
 FormNameToURL_Map['test02'.lower()] = ('', None)

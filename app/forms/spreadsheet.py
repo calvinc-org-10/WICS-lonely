@@ -856,7 +856,7 @@ class UploadActCountSprsht(cSRFSingleRecordForm):
                 cleanval = val.date() if isinstance(val,datetime) else val
             elif isinstance(val,int):
                 usefld = True
-                cleanval = from_excel(val,CountSprshtDateEpoch)
+                cleanval = from_excel(val, CountSprshtDateEpoch)
             else:
                 try:
                     cleanval = dateparse(val).date()

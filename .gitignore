@@ -164,3 +164,4 @@ cython_debug/
 cMenu.zip
 app_secrets/
 cMenudb.sqlite
+WICSdb.sqlite
