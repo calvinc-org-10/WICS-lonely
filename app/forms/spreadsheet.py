@@ -547,6 +547,8 @@ class UpdateMatlListfromSAP(cSRFSingleRecordForm):
         Repository(get_app_sessionmaker(), tmpMaterialListUpdate).removewhere(True)
     # proc_MatlListSAPSprsheet_99_Cleanup
 # UpdateMatlListfromSAP
+    def end_of_class(self):
+        pass
 
 class ShowUpdateMatlListfromSAPForm(QWidget):
     """A form to show the Update Material List from SAP MM60 or ZMSQV001 Spreadsheet form."""
@@ -611,57 +613,8 @@ class ShowUpdateMatlListfromSAPForm(QWidget):
         # endif RemovalsList
     # __init__
 # ShowUpdateMatlListfromSAPForm
-
-
-class ShowUploadedCountEntries(QWidget):
-    """A form to show the Update Material List from SAP MM60 or ZMSQV001 Spreadsheet form."""
-    _formname = "Upload Count Spreadsheet - Results"
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        self.setWindowTitle(self._formname)
-        myLayout = QVBoxLayout(self)
-        lblResultsTitle = QLabel(self._formname)
-        myLayout.addWidget(lblResultsTitle)
-
-        wdgtMainArea = QWidget()
-        layoutMainArea = QVBoxLayout(wdgtMainArea)
-        wdgtScrollArea = QScrollArea()
-        wdgtScrollArea.setWidgetResizable(True)
-        wdgtScrollArea.setWidget(wdgtMainArea)
-        myLayout.addWidget(wdgtScrollArea)
-
-        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-            UploadSAPResults.errState == 'nRowsTotal'
-        )
-        nRowsRead = statusVal[0].rowNum - 1 if statusVal else 0     # -1 because header doesn't count
-        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-            UploadSAPResults.errState == 'nRowsAdded'
-        )
-        nRowsAdded = statusVal[0].rowNum if statusVal else 0
-        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-            UploadSAPResults.errState == 'nRowsErrors'
-        )
-        nRowsErrors = statusVal[0].rowNum if statusVal else 0
-        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-            UploadSAPResults.errState == 'nRowsIgnored'
-        )
-        nRowsNoMaterial = statusVal[0].rowNum if statusVal else 0
-
-        UplResults = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
-            UploadSAPResults.errState.notin_(['nRowsAdded','nRowsTotal','nRowsErrors','nRowsIgnored'])
-        )
-        lblSummary = QLabel(f"Upload Summary: {nRowsRead} rows read, {nRowsAdded} rows added, {nRowsErrors} rows with errors, {nRowsNoMaterial} rows ignored (no material).")
-        layoutMainArea.addWidget(lblSummary)
-
-        for res in UplResults:
-            rstr = f"{res.errState}: {res.errmsg}" if 'error' in res.errState else f"Count Record {res.errmsg} added"
-            lblrslt = QLabel(rstr)
-            layoutMainArea.addWidget(lblrslt)
-        # endif UplResults
-    # __init__
-# ShowUpdateMatlListfromSAPForm
+    def end_of_class(self):
+        pass
 
 class UploadActCountSprsht(cSRFSingleRecordForm):
     """
@@ -1179,14 +1132,15 @@ class UploadActCountSprsht(cSRFSingleRecordForm):
     def proc_UpActCountSprsheet_99_Cleanup(self) -> None:
         # delete the temporary table
         Repository(get_app_sessionmaker(), UploadSAPResults).removewhere(True)
-
-
-class ShowUploadedSAPResults(QWidget):
-    """A form to show the Upload SAP SOH Spreadsheet results."""
-    _formname = "Upload SAP SOH Spreadsheet - Results"
+# UploadActCountSprsht
+    def end_of_class(self):
+        pass
+    
+class ShowUploadedCountEntries(QWidget):
+    """A form to show the Update Material List from SAP MM60 or ZMSQV001 Spreadsheet form."""
+    _formname = "Upload Count Spreadsheet - Results"
 
     def __init__(self, *args, **kwargs):
-        uploadresults = kwargs.pop('uploadresults', {})
         super().__init__(*args, **kwargs)
 
         self.setWindowTitle(self._formname)
@@ -1201,16 +1155,36 @@ class ShowUploadedSAPResults(QWidget):
         wdgtScrollArea.setWidget(wdgtMainArea)
         myLayout.addWidget(wdgtScrollArea)
 
-        # nRowsRead = uploadresults.get('nRowsTotal', 0)
-        nRowsAdded = uploadresults.get('nRowsAdded', 0)
-        upldDate = uploadresults.get('uploadDate', None)
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsTotal'
+        )
+        nRowsRead = statusVal[0].rowNum - 1 if statusVal else 0     # -1 because header doesn't count
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsAdded'
+        )
+        nRowsAdded = statusVal[0].rowNum if statusVal else 0
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsErrors'
+        )
+        nRowsErrors = statusVal[0].rowNum if statusVal else 0
+        statusVal = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState == 'nRowsIgnored'
+        )
+        nRowsNoMaterial = statusVal[0].rowNum if statusVal else 0
 
-        lblSummary = QLabel(
-            f"<h4>{ nRowsAdded } SAP SOH (MB52) spreadsheet records successfully uploaded with date { upldDate }!</h4>"
-            )
+        UplResults = Repository(get_app_sessionmaker(), UploadSAPResults).get_all(
+            UploadSAPResults.errState.notin_(['nRowsAdded','nRowsTotal','nRowsErrors','nRowsIgnored'])
+        )
+        lblSummary = QLabel(f"Upload Summary: {nRowsRead} rows read, {nRowsAdded} rows added, {nRowsErrors} rows with errors, {nRowsNoMaterial} rows ignored (no material).")
         layoutMainArea.addWidget(lblSummary)
+
+        for res in UplResults:
+            rstr = f"{res.errState}: {res.errmsg}" if 'error' in res.errState else f"Count Record {res.errmsg} added"
+            lblrslt = QLabel(rstr)
+            layoutMainArea.addWidget(lblrslt)
+        # endif UplResults
     # __init__
-# ShowUploadedSAPResults
+# ShowUpdateMatlListfromSAPForm
     def end_of_class(self):
         pass
 
@@ -1519,5 +1493,37 @@ class UploadSAPSOHSprsht(cSRFSingleRecordForm):
 # UploadSAPSOHSprsht
     def end_of_class(self):
         pass
-# UploadActCountSprsht
+
+class ShowUploadedSAPResults(QWidget):
+    """A form to show the Upload SAP SOH Spreadsheet results."""
+    _formname = "Upload SAP SOH Spreadsheet - Results"
+
+    def __init__(self, *args, **kwargs):
+        uploadresults = kwargs.pop('uploadresults', {})
+        super().__init__(*args, **kwargs)
+
+        self.setWindowTitle(self._formname)
+        myLayout = QVBoxLayout(self)
+        lblResultsTitle = QLabel(self._formname)
+        myLayout.addWidget(lblResultsTitle)
+
+        wdgtMainArea = QWidget()
+        layoutMainArea = QVBoxLayout(wdgtMainArea)
+        wdgtScrollArea = QScrollArea()
+        wdgtScrollArea.setWidgetResizable(True)
+        wdgtScrollArea.setWidget(wdgtMainArea)
+        myLayout.addWidget(wdgtScrollArea)
+
+        # nRowsRead = uploadresults.get('nRowsTotal', 0)
+        nRowsAdded = uploadresults.get('nRowsAdded', 0)
+        upldDate = uploadresults.get('uploadDate', None)
+
+        lblSummary = QLabel(
+            f"<h4>{ nRowsAdded } SAP SOH (MB52) spreadsheet records successfully uploaded with date { upldDate }!</h4>"
+            )
+        layoutMainArea.addWidget(lblSummary)
+    # __init__
+# ShowUploadedSAPResults
+    def end_of_class(self):
+        pass
 
